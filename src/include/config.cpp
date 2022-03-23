@@ -73,7 +73,7 @@ void Config::load(const char *path)
 	if(ldap.find("filter") != ldap.end())
 	    ldap_filter = ldap.at("filter").get<std::string>();
 	else
-	    ldap_filter_local = ldap.at("ldap_filter_local").get<std::string>();
+	    ldap_filter_local = ldap.at("filter_local").get<std::string>();
         ldap_attr = ldap.at("attr").get<std::string>();
     }
     if (j.find("users") != the_end)
