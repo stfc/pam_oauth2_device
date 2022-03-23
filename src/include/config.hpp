@@ -23,6 +23,7 @@ public:
         ldap_passwd,
 	ldap_preauth,
         ldap_filter,
+	ldap_filter_local,
         ldap_attr,
 	tls_ca_path,
 	tls_ca_bundle,

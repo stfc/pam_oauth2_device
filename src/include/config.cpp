@@ -70,7 +70,10 @@ void Config::load(const char *path)
 	    ldap_scope = ldap.at("scope").get<std::string>();
 	if(ldap.find("preauth") != ldap.end())
 	    ldap_preauth = ldap.at("preauth").get<std::string>();
-        ldap_filter = ldap.at("filter").get<std::string>();
+	if(ldap.find("filter") != ldap.end())
+	    ldap_filter = ldap.at("filter").get<std::string>();
+	else
+	    ldap_filter_local = ldap.at("ldap_filter_local").get<std::string>();
         ldap_attr = ldap.at("attr").get<std::string>();
     }
     if (j.find("users") != the_end)

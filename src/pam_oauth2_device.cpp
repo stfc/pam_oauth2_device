@@ -428,9 +428,13 @@ bool is_authorized(Config const &config,
 	    throw ConfigError("Failed to parse LDAP scope");
 	}
 
-	size_t filter_length = config.ldap_filter.length() + strlen(username_remote) + 1;
+	size_t filter_length = config.ldap_filter.length() + 1;
+	filter_length += config.ldap_filter.empty() ? username_local.size() : strlen(username_remote);
         char *filter = new char[filter_length];
-        snprintf(filter, filter_length, config.ldap_filter.c_str(), username_remote);
+	if(config.ldap_filter.empty())
+	    snprintf(filter, filter_length, config.ldap_filter.c_str(), username_local.c_str());
+	else
+	    snprintf(filter, filter_length, config.ldap_filter.c_str(), username_remote);
         int rc = ldap_check_attr(logger.get_pam_handle(), ldap_log_level(logger.log_level()),
 				 config.ldap_host.c_str(), config.ldap_basedn.c_str(), scope,
                                  config.ldap_user.c_str(), config.ldap_passwd.c_str(),
@@ -594,7 +598,7 @@ bypass(Config const &config, pam_oauth2_log &logger, char const *local_user)
 	}
     }
 
-    if(config.ldap_host.empty() && config.ldap_preauth.empty())
+    if(config.ldap_host.empty() || config.ldap_preauth.empty())
 	return false;
     int scope = ldap_scope_value(config.ldap_scope.c_str());
     if(scope < -1)
