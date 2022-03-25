@@ -429,10 +429,15 @@ bool is_authorized(Config const &config,
 	}
 
 	size_t filter_length = config.ldap_filter.length() + 1;
+	// If filter is empty we use filter_local which requires local name instead of remote
 	filter_length += config.ldap_filter.empty() ? username_local.size() : strlen(username_remote);
         char *filter = new char[filter_length];
+	if(!filter) {
+	    logger.log(pam_oauth2_log::log_level_t::ERR, "ldap failed malloc");
+	    throw std::bad_alloc();
+	}
 	if(config.ldap_filter.empty())
-	    snprintf(filter, filter_length, config.ldap_filter.c_str(), username_local.c_str());
+	    snprintf(filter, filter_length, config.ldap_filter_local.c_str(), username_local.c_str());
 	else
 	    snprintf(filter, filter_length, config.ldap_filter.c_str(), username_remote);
         int rc = ldap_check_attr(logger.get_pam_handle(), ldap_log_level(logger.log_level()),
