@@ -428,9 +428,12 @@ bool is_authorized(Config const &config,
 	    throw ConfigError("Failed to parse LDAP scope");
 	}
 
-	size_t filter_length = config.ldap_filter.length() + 1;
+	size_t filter_length = 0;
 	// If filter is empty we use filter_local which requires local name instead of remote
-	filter_length += config.ldap_filter.empty() ? username_local.size() : strlen(username_remote);
+	if(config.ldap_filter.empty())
+	    filter_length = config.ldap_filter_local.size() + username_local.size() + 1;
+	else
+	    filter_length = config.ldap_filter.size() + strlen(username_remote) + 1;
         char *filter = new char[filter_length];
 	if(!filter) {
 	    logger.log(pam_oauth2_log::log_level_t::ERR, "ldap failed malloc");
