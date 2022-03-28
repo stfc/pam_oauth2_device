@@ -116,26 +116,29 @@ This part of the module functionality carries a lot of legacy stuff; see the Aut
 | ldap | passwd | String | Y | password | Note 2 |
 | ldap | scope | String | N | | Note 3 |
 | ldap | preauth | String | N | | |
-| ldap | filter | String | Y | | |
+| ldap | filter | String | N | | Note 4 |
+| ldap | filter\_local | String | N | | Note 4 |
 | ldap | attr | String | Y | | |
 | group | | Object | N | | |
 | group | access | boolean | Y | Whether to use this section | |
-| group | service\_name | String | Y | | Note 4 |
+| group | service\_name | String | Y | | Note 5 |
 | cloud | | Object | N | | |
 | cloud | access | boolean | Y | Whether to use this section | |
-| cloud | endpoint | String | Y | | Note 5 |
-| cloud | username | String | Y | endpoint username | Note 5 |
-| cloud | metadata\_file | String | Y | | Note 5 |
-| users | | Object | N | User Mapping section | Note 6 |
+| cloud | endpoint | String | Y | | Note 6 |
+| cloud | username | String | Y | endpoint username | Note 6 |
+| cloud | metadata\_file | String | Y | | Note 6 |
+| users | | Object | N | User Mapping section | Note 7 |
 
 1 The base DN, least significant RDN first
 2 Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
 3 scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
   - If the LDAP implementation supports 'subordinate' or 'children' (these are synonymous) then these are available as scopes as well
   - The default is 'sub'
-4 The service name is a string, which should name a group
-5 The 'cloud' section implements a callout to a server to fetch a group membership file
-6 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
+4 One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
+  attribute set to the empty string is equivalent to it being absent.
+5 The service name is a string, which should name a group
+6 The 'cloud' section implements a callout to a server to fetch a group membership file
+7 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
 
 ### Bypass
 
@@ -187,7 +190,7 @@ If Fred is not authorised through  the cloud or group sections, either because t
 
 This usermap is in the **users* section which expects a JSON object mapping the *remote* username to an array of permissible local usernames. Thus, the same user could have multiple local logins using this method.  If the local username is found here, Fred is considered authorised.  No suffix is used in this section.
 
-If Fred is not authorised through any of these methods, the module falls back to an LDAP lookup (if the **ldap** section is configured).  The LDAP query takes a configured filter and substitutes the *remote* username for a `%s` part of the filter, and queries a configured attribute.
+If Fred is not authorised through any of these methods, the module falls back to an LDAP lookup (if the **ldap** section is configured).  The LDAP query takes a configured filter and substitutes the *remote* username for a `%s` part of the filter, and queries a configured attribute.  There is also a filter\_local which, if filter is left out, will substitute the *local* username and run the query with that instead.
 
 If the filter is `(&(objectClass=user)(cn=%s))` then `bloggs` is substituted in our example, and a target attribute (configured with `attr`) is queried from the LDAP server.  For example, if `attr` has the value `uid` then the equivalent of
 
@@ -195,8 +198,9 @@ If the filter is `(&(objectClass=user)(cn=%s))` then `bloggs` is substituted in 
 ldapsearch -x -H ldap://host -b base '(&(objectClass=user)(cn=bloggs))' uid
 ```
 
-is run and the result is compared with the local username, `fred`.  If these match (no suffix is used), then Fred is again considered authorised.
+If this query is successful, then Fred is again considered authorised.
 
+If, alternatively, filter\_local is used, the local username is substituted, and the query for `attr` is run with the local username, checking whether it has a `uid` attribute.
 
 ## SSH Configuration
 
