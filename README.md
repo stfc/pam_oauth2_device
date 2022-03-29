@@ -98,6 +98,7 @@ Notes:
    * "ca\_path" works only with OpenSSL
    * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS
    * If both ca\_path and ca\_bundle are present, the latter takes precedence
+   * If neither is present, a compile-time system default should apply
 3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
 4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
 
