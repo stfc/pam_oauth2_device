@@ -51,6 +51,49 @@ On Debian-based systems, this would be `/lib/x86_64-linux-gnu/security` whereas 
 
 ## Configuration
 
+Although JSON is not ideal for configuration files (it's a bit picky about syntax and it's hard to add comments), we now
+support splitting the configuration file into several segments (all of which should be JSON "objects" at the outermost
+level).  This is useful for maintaining parts of the file such as client secrets or user maps in separate files.
+
+### Splitting configuration into several files
+
+In any place where a JSON object (the curly braces construct) is expected in the configuration, a JSON string can be
+placed instead with a filename in the string; this file will be loaded and will serve as the object in question and must
+have the format expected in the configuration template.  This can be nested to any depth required.  It is strongly
+recommended to use full pathnames inside these strings.
+
+For example, if the normal configuration file looks like this (obviously a real configuration file would have more stuff
+in it):
+
+```
+{
+  "oauth": {
+    "client": {
+      "id": "abcd",
+      "secret": "meetmeinstlouis"
+  },
+  "scope": "openid profile"
+}
+```
+and the system administrator decides to store the client object in a separate file, they can do it as follows:
+
+```
+{
+  "oauth": {
+    "client": "/etc/pam_oauth2_device/client.json",
+  "scope": "openid profile"
+}
+```
+The `client.json` file should then look like this:
+```
+{
+ "id": "abcd",
+ "secret": "meetmeinstlouis"
+}
+```
+
+In contrast, the `scope` cannot be split off into a separate file as a string is expected as value for the `scope` parameter.
+
 ### User names
 
 Usernames are mentioned several times in this document and could probably get a bit confusing.  This section attempts to give a short explanation.
