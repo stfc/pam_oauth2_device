@@ -178,6 +178,9 @@ pam_oauth2_curl_impl::reset(const Config &config)
     // Note 2 below
     if(curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L) != CURLE_OK)
         throw NetworkError("curl setup cannot set verifyhost");
+    // Extra TLS debugging
+    if(config.tls_debug)
+	curl_easy_setopt(curl, CURLOPT_CERTINFO, 1L);
 
     // Prefer the bundle over the path for NSS compat
     if(!config.tls_ca_bundle.empty()) {
@@ -303,6 +306,24 @@ pam_oauth2_curl_impl::add_params(pam_oauth2_curl::params &params, std::string co
     return params;
 }
 
+
+void
+pam_oauth2_curl_impl::debug_certinfo(Config &config)
+{
+    if(config.tls_debug) {
+	struct curl_certinfo *ci;
+	res = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+
+	if (!res) {
+	    for(i = 0; i < ci->num_of_certs; i++) {
+		struct curl_slist *slist;
+
+		for(slist = ci->certinfo[i]; slist; slist = slist->next)
+		    printf("%s\n", slist->data);
+	    }
+	}
+    }
+}
 
 
 size_t

@@ -131,6 +131,7 @@ Thus, at the top level, there is a single object with a number of entries, descr
 | tls | | Object | Y | | |
 | tls | ca\_bundle | String | N | Concatenated list of trust anchors | Note 2 |
 | tls | ca\_path | String | N | Directory with trust anchors | Note 2 |
+| tls | debug | bool | N | Extra certificate debug | |
 | qr | | Object | N | | |
 | qr | error\_correction\_level | Int | Y | QR code | Note 3 |
 
@@ -139,9 +140,17 @@ Notes:
 1 The string value should have a _space separated_ list of scopes which must include `offline_access`
 2 If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
    * "ca\_path" works only with OpenSSL
-   * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS
+   * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS (or something different again)
    * If both ca\_path and ca\_bundle are present, the latter takes precedence
-   * If neither is present, a compile-time system default should apply
+   * If neither is present, a compile-time system default should apply (the default has changed with curl 7.55 using the
+     NSS engine)
+   * curl may use a default for the unset option: i.e. if a bundle is provided, curl may use a default for the path.
+     Use the tls debug option to find out what's going on if you have trouble figuring out what's happening.
+   * *Warning*: some TLS engines may not support the bundle, some may not support the path.
+     - Both OpenSSL and NSS should support the bundle,
+	 - OpenSSL supports the path.
+   * Note that prior to curl 7.56, there is no sensible way for the curl client (i.e. the PAM module) to know what
+     curl's TLS engine is (though you should still run `curl -V` by hand to check)
 3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
 4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
 

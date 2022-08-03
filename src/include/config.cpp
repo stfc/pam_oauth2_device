@@ -157,6 +157,7 @@ Config::load(const char *path)
 	 variable({"cloud","metadata_file"},value(""),false, metadata_file),
 	 variable({"tls","ca_bundle"},value(""),false, tls_ca_bundle),
 	 variable({"tls","ca_path"}, value("/etc/grid-security/certificates"),false, tls_ca_path),
+	 variable({"tls","debug"},value(false),false, tls_debug),
 	 variable({"group","access"},value(false),false, group_access),
 	 variable({"group","service_name"},value(""),false, group_service_name),
 	 variable({"ldap","host"},value(""),false, ldap_host),

@@ -61,6 +61,8 @@ public:
     pam_oauth2_curl::params &add_params(pam_oauth2_curl::params &params, std::string const &key, std::string const &value);
     //@ return true if string contains a reserved character
     static bool contains_reserved(std::string const &);
+    //@ post connection extra remote host certificate debug
+    void debug_certinfo(Config &);
 };
 
 
