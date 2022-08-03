@@ -20,6 +20,7 @@
 #include "config.hpp"
 
 
+// currently a compile time constant
 constexpr bool debug = false;
 
 using json = nlohmann::json;
@@ -44,7 +45,7 @@ public:
 
     explicit value(bool t) : type_(value_type::VT_BOOL), strval_(), intval_(), boolval_(t) { }
 
-    [[nodiscard]] constexpr value_type type() const noexcept { return type_; }
+    [[nodiscard]] value_type type() const noexcept { return type_; }
 
     /** Construct a value based on the JSON structure assuming it is one of those we can encode */
     value(json const &);
@@ -149,7 +150,7 @@ Config::load(const char *path)
 	 variable({"oauth","local_username_suffix"},value(""),false, local_username_suffix),
 	 variable({"qr","error_correction_level"},value(-1),false, qr_error_correction_level),
 	 variable({"client_debug"},value(false),false, client_debug),
-	 variable({"http_basic_auth"},value(false),false, http_basic_auth),
+	 variable({"http_basic_auth"},value(true),false, http_basic_auth),
 	 variable({"cloud","access"},value(false),false, cloud_access),
 	 variable({"cloud","endpoint"},value(""),false, cloud_endpoint),
 	 variable({"cloud","username"},value(""),false, cloud_username),
@@ -173,11 +174,16 @@ Config::load(const char *path)
     // The users section is much like before but can be in a separate file, too
     if (config.find("users") != the_end) {
 	json j = config.at("users");
-	if(j.type() == json::value_t::string)
-	    j = read_file(j.get<std::string>());
+	if(j.type() == json::value_t::string) {
+	    auto const fn = j.get<std::string>();
+	    if(debug)
+		std::cerr << "Read users from " << fn << '\n';
+	    j = read_file(fn);
+	}
 
-        for (auto const &element : j["users"].items())
+        for (auto const &element : j.items())
         {
+	    std::cerr << "User " << element << " read\n";
             for (auto const &local_user : element.value())
             {
                 if (usermap.find(element.key()) == usermap.end())
@@ -185,79 +191,21 @@ Config::load(const char *path)
                     std::set<std::string> userset;
                     userset.insert((std::string)local_user);
                     usermap[element.key()] = userset;
+		    if(debug)
+			std::cerr << "CONF SET users NEW " << element.key() << " " << local_user << std::endl;
                 }
                 else
                 {
                     usermap[element.key()].insert((std::string)local_user);
+		    if(debug)
+			std::cerr << "CONF SET users ADD " << element.key() << " " << local_user << std::endl;
                 }
             }
         }
     }
+    else if(debug)
+	std::cerr << "No users section found\n";
 
-    
-#if 0
-    scope = j.at("oauth").at("scope").get<std::string>();
-    device_endpoint = j.at("oauth").at("device_endpoint").get<std::string>();
-    token_endpoint = j.at("oauth").at("token_endpoint").get<std::string>();
-    userinfo_endpoint = j.at("oauth").at("userinfo_endpoint").get<std::string>();
-    username_attribute = j.at("oauth").at("username_attribute").get<std::string>();
-    local_username_suffix = j.at("oauth").at("local_username_suffix").get<std::string>();
-
-    qr_error_correction_level = (j.find("qr") != the_end) ?
-        j.at("qr").at("error_correction_level").get<int>() : -1;
-
-    client_debug = (j.find("client_debug") != the_end) ? j.at("client_debug").get<bool>() : false;
-
-    http_basic_auth = (j.find("http_basic_auth") != the_end) ?
-        j.at("http_basic_auth").get<bool>() : true;
-
-    if (j.find("cloud") != the_end) {
-        auto cloud_section = j.at("cloud");
-        cloud_access = cloud_section.at("access").get<bool>();
-        cloud_endpoint = cloud_section.at("endpoint").get<std::string>();
-        cloud_username = cloud_section.at("username").get<std::string>();
-	// Absent in older config files
-	if(cloud_section.find("metadata_file") != cloud_section.end())
-	    metadata_file = cloud_section.at("metadata_file").get<std::string>();
-    }
-
-    if(j.find("tls") !=  the_end)
-    {
-	auto tls_section = j.at("tls");
-	if(tls_section.find("ca_bundle") != tls_section.end()) {
-	    tls_ca_bundle = tls_section.at("ca_bundle").get<std::string>();
-	} else {
-	    tls_ca_path = tls_section.at("ca_path").get<std::string>();
-	}
-    } else {
-	// typical IGTF (www.igtf.net) default
-	tls_ca_path = "/etc/grid-security/certificates";
-    }
-
-    if (j.find("group") != the_end)
-    {
-        group_access = j.at("group").at("access").get<bool>();
-        group_service_name = j.at("group").at("service_name").get<std::string>();
-    }
-
-    if (j.find("ldap") != the_end)
-    {
-	auto ldap = j.at("ldap");
-        ldap_host = ldap.at("host").get<std::string>();
-        ldap_basedn = ldap.at("basedn").get<std::string>();
-        ldap_user = ldap.at("user").get<std::string>();
-        ldap_passwd = ldap.at("passwd").get<std::string>();
-	if(ldap.find("scope") != ldap.end())
-	    ldap_scope = ldap.at("scope").get<std::string>();
-	if(ldap.find("preauth") != ldap.end())
-	    ldap_preauth = ldap.at("preauth").get<std::string>();
-	if(ldap.find("filter") != ldap.end())
-	    ldap_filter = ldap.at("filter").get<std::string>();
-	else
-	    ldap_filter_local = ldap.at("filter_local").get<std::string>();
-        ldap_attr = ldap.at("attr").get<std::string>();
-    }
-#endif
 }
 
 
@@ -452,17 +400,23 @@ void
 variable::check_type(value const &v, list const &path) const
 {
     char const *type = "unknown";
+    if(debug)
+	std::cerr << "CONF SET " << print_list(std::get<0>(place_)) << " TO ";
     switch(v.type()) {
     case value::value_type::VT_ERR:
     case value::value_type::VT_NULL:
     {
 	std::ostringstream os;
 	os << "Attempt to set" << print_list(path) << " to null/error";
+	if(debug)
+	    std::cerr << "NULL/ERR\n";
 	throw std::runtime_error(os.str());
     }
     case value::value_type::VT_STR:
 	if(s_) {
 	    *s_ = v.get_str();
+	    if(debug)
+		std::cerr << *s_ << std::endl;
 	    return;
 	}
 	type = "string";
@@ -470,6 +424,8 @@ variable::check_type(value const &v, list const &path) const
     case value::value_type::VT_INT:
 	if(i_) {
 	    *i_ = v.get_int();
+	    if(debug)
+		std::cerr << *i_ << std::endl;
 	    return;
 	}
 	type = "int";
@@ -477,6 +433,8 @@ variable::check_type(value const &v, list const &path) const
     case value::value_type::VT_BOOL:
 	if(b_) {
 	    *b_ = v.get_bool();
+	    if(debug)
+		std::cerr << (*b_ ? "true" : "false") << std::endl;
 	    return;
 	}
 	type = "bool";
