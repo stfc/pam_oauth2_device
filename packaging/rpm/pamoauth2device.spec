@@ -30,6 +30,8 @@ Requires: openldap-clients
 PAM module that allows authentication against external OpenID Connect
 identity provider using OAuth 2.0 Device Flow.
 
+# Prevent rpmbuild from complaining about missing debug (thanks, Jose!)
+%global debug_package %{nil}
 
 %prep
 %setup -q -n pam_oauth2_device-%{_version}
