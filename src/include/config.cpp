@@ -184,7 +184,6 @@ Config::load(const char *path)
 
         for (auto const &element : j.items())
         {
-	    std::cerr << "User " << element << " read\n";
             for (auto const &local_user : element.value())
             {
                 if (usermap.find(element.key()) == usermap.end())

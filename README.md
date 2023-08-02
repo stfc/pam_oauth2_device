@@ -315,4 +315,7 @@ This should start `sshd` with the name `pamsshd` listening on port 2222.  Now tr
 
 Again check the logs as in the previous tests.
 
+## Notable Versions
 
+- v1.03 support for segmented configuration files (as described above)
+- v1.00 (commit efd50f6376a65319a2834b957a2cf6bbe6b7aa2d) - first version for full scale DiRAC test
