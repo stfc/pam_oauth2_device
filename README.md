@@ -20,6 +20,25 @@ The two basic targets are `make` and `make test`; the latter will build (some of
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
+### Manual build on Rocky 8
+
+From a base Rocky 8 system (tested with 8.10)
+```
+sudo dnf install gcc gcc-c++ make git
+sudo dnf install pam-devel openldap-devel libcurl-devel
+git clone https://github.com/stfc/pam_oauth2_device.git
+cd pam_oauth2_device
+make 
+```
+
+If you also want  `pamtester` (for testing, see below)
+
+```
+sudo dnf install epel-release
+sudo dnf update
+sudo dnf install pamtester
+```
+
 
 ### Manual Build on Scientific Linux or CentOS7
 
@@ -39,8 +58,17 @@ cp pam_oauth2_device.so /lib64/security/pam_oauth2_device.so
 cp config_template.json config.json
 ```
 
-### Build on Debian 10/Ubuntu Focal (20.04)
+### Build on Debian 13 or Ubuntu (22.04 LTS or )
 
+```
+apt install libpam0g-dev
+apt install libcurl4-openssl-dev
+apt install libldap-dev
+git clone https://github.com/stfc/pam_oauth2_device.git
+cd pam_oauth2_device/
+make
+```
+Similarly, run `apt install pamtester` to get the tester, if required (see below)
 
 ## Installation
 
@@ -292,7 +320,7 @@ Note that testing *requires* that you install the module in the system location 
 
 ### Test 1: pam tester
 
-Follow instructions above, and additionally install `pamtester`.
+Follow instructions above, and additionally install `pamtester` (in Rocky, install EPEL (`epel-release`) first)
 
 Run
 ```
@@ -300,20 +328,52 @@ pamtester -v pamtester localusername authenticate
 ```
 and follow the onscreen prompts.  Here, `localusername` refers to your local user name so replace it with whatever your name is.
 
-You can check `/var/log/secure` or `/var/log/auth.log` to find what's wrong if there are errors authenticating.  While the module
+Note that if testing as an unprivileged user, pamtester must have permissions to read the configuration file.
+
+You can check `/var/log/secure` (Rocky) or `/var/log/auth.log` (Debian/Ubuntu) to find what's wrong if there are errors authenticating.  While the module
 uses syslog, syslog is normally set up to log PAM stuff into one of these files.
 
 ### Test 2: sshd
 
-While pamtester tests the authenticate section, you should try a proper ssh login from another host.  If you created `pamsshd` as above (and copied configuration as described above), start it with
+While pamtester tests the authenticate section of the PAM configuration, you should try a proper ssh login from another host.  If you created `pamsshd` as above (and copied configuration as described above), start it with
 
 ```
 /usr/local/sbin/pamsshd -f /etc/ssh/pamsshd_config -p 2222 -d
 ```
+Since it's listening on port 2222, it can run as an unprivileged user, but needs permission to read the configuration file.
 
 This should start `sshd` with the name `pamsshd` listening on port 2222.  Now try to log in from another host (bearing in mind the port should be open for incoming tcp).  On the other host, run `ssh -p 2222 localusername@myhost` where `localusername` is the local user name and `myhost` is the host running `pamsshd`.
 
 Again check the logs as in the previous tests.
+
+## Troubleshooting and Configuring OpenID Providers (OPs) to use with pam_oauth2_device
+
+This section provides some guidance on configuring the client to work with the module and troubleshooting
+if it doesn't work.
+
+### Client Registration and Configuration
+
+1. Check that the certificate of the OP's endpoint(s) validate(s) with the CA bundle or CA path
+   - Use a browser to save the certificate into a file, `cert.pem`, say
+   - Then check with this command:
+
+```
+openssl verify -CApath /etc/pki/certs cert.pem
+```
+or
+```
+openssl verify -CAfile /etc/pki/ca-bundle.pem cert.pem
+```
+where we have assumed your paths/bundles are in `/etc/pki` as above.  If the certificate does not validate, consider
+installing the root of the validation path into `/etc/pki`, e.g. `/etc/pki/root.pem`.  The easiest way to find the
+certificate is to use a browser to save it.
+
+2. Check that the scopes being requested by the PAM module is a subset of those allowed to the client
+   - Check that `offline_access` is included (on both ends)
+   - Check that the attribute used as `username_attribute` is included (on both ends)
+     - E.g. if `username_attribute` has the value `preferred_username`, ensure that the client is allowed
+       `preferred_username`
+
 
 ## Notable Versions
 

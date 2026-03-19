@@ -38,9 +38,9 @@ pam_oauth2_curl::make_credential(Config const &config)
     // CHTC patch (revised again). Add secret (see RFC 6749 section 2.3.1) to parameters
     if(!config.http_basic_auth)
     {
-	return std::move(pam_oauth2_curl::credential(config.client_id, config.client_secret, 0));
+	return pam_oauth2_curl::credential(config.client_id, config.client_secret, 0);
     }
-    return std::move(credential(config.client_id, config.client_secret));
+    return credential(config.client_id, config.client_secret);
 }
 
 
