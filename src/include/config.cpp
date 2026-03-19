@@ -300,7 +300,7 @@ std::string
 print_list(list const &l)
 {
     std::ostringstream os;
-    for(auto const s : l)
+    for(auto const &s : l)
 	os << '/' << s;
     return os.str();
 }
