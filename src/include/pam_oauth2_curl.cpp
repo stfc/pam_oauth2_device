@@ -311,12 +311,12 @@ void
 pam_oauth2_curl_impl::debug_certinfo(Config &config)
 {
     if(config.tls_debug) {
-	struct curl_certinfo *ci;
-	res = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+	curl_certinfo *ci;
+	auto res = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
 
 	if (!res) {
-	    for(i = 0; i < ci->num_of_certs; i++) {
-		struct curl_slist *slist;
+	    for(decltype(ci->num_of_certs) i = 0; i < ci->num_of_certs; i++) {
+		curl_slist *slist;
 
 		for(slist = ci->certinfo[i]; slist; slist = slist->next)
 		    printf("%s\n", slist->data);
