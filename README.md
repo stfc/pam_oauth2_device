@@ -20,6 +20,25 @@ The two basic targets are `make` and `make test`; the latter will build (some of
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
+### Manual build on Rocky 8
+
+From a base Rocky 8 system (tested with 8.10)
+```
+sudo dnf install gcc gcc-c++ make git
+sudo dnf install pam-devel openldap-devel libcurl-devel
+git clone https://github.com/stfc/pam_oauth2_device.git
+cd pam_oauth2_device
+make 
+```
+
+If you also want  `pamtester` (for testing, see below)
+
+```
+sudo dnf install epel-release
+sudo dnf update
+sudo dnf install pamtester
+```
+
 
 ### Manual Build on Scientific Linux or CentOS7
 
@@ -39,8 +58,17 @@ cp pam_oauth2_device.so /lib64/security/pam_oauth2_device.so
 cp config_template.json config.json
 ```
 
-### Build on Debian 10/Ubuntu Focal (20.04)
+### Build on Debian 13 or Ubuntu (22.04 LTS or )
 
+```
+apt install libpam0g-dev
+apt install libcurl4-openssl-dev
+apt install libldap-dev
+git clone https://github.com/stfc/pam_oauth2_device.git
+cd pam_oauth2_device/
+make
+```
+Similarly, run `apt install pamtester` to get the tester, if required (see below)
 
 ## Installation
 
@@ -131,6 +159,7 @@ Thus, at the top level, there is a single object with a number of entries, descr
 | tls | | Object | Y | | |
 | tls | ca\_bundle | String | N | Concatenated list of trust anchors | Note 2 |
 | tls | ca\_path | String | N | Directory with trust anchors | Note 2 |
+| tls | debug | bool | N | Extra certificate debug | |
 | qr | | Object | N | | |
 | qr | error\_correction\_level | Int | Y | QR code | Note 3 |
 
@@ -139,8 +168,17 @@ Notes:
 1 The string value should have a _space separated_ list of scopes which must include `offline_access`
 2 If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
    * "ca\_path" works only with OpenSSL
-   * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS
+   * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS (or something different again)
    * If both ca\_path and ca\_bundle are present, the latter takes precedence
+   * If neither is present, a compile-time system default should apply (the default has changed with curl 7.55 using the
+     NSS engine)
+   * curl may use a default for the unset option: i.e. if a bundle is provided, curl may use a default for the path.
+     Use the tls debug option to find out what's going on if you have trouble figuring out what's happening.
+   * *Warning*: some TLS engines may not support the bundle, some may not support the path.
+     - Both OpenSSL and NSS should support the bundle,
+	 - OpenSSL supports the path.
+   * Note that prior to curl 7.56, there is no sensible way for the curl client (i.e. the PAM module) to know what
+     curl's TLS engine is (though you should still run `curl -V` by hand to check)
 3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
 4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
 
@@ -159,26 +197,29 @@ This part of the module functionality carries a lot of legacy stuff; see the Aut
 | ldap | passwd | String | Y | password | Note 2 |
 | ldap | scope | String | N | | Note 3 |
 | ldap | preauth | String | N | | |
-| ldap | filter | String | Y | | |
+| ldap | filter | String | N | | Note 4 |
+| ldap | filter\_local | String | N | | Note 4 |
 | ldap | attr | String | Y | | |
 | group | | Object | N | | |
 | group | access | boolean | Y | Whether to use this section | |
-| group | service\_name | String | Y | | Note 4 |
+| group | service\_name | String | Y | | Note 5 |
 | cloud | | Object | N | | |
 | cloud | access | boolean | Y | Whether to use this section | |
-| cloud | endpoint | String | Y | | Note 5 |
-| cloud | username | String | Y | endpoint username | Note 5 |
-| cloud | metadata\_file | String | Y | | Note 5 |
-| users | | Object | N | User Mapping section | Note 6 |
+| cloud | endpoint | String | Y | | Note 6 |
+| cloud | username | String | Y | endpoint username | Note 6 |
+| cloud | metadata\_file | String | Y | | Note 6 |
+| users | | Object | N | User Mapping section | Note 7 |
 
 1 The base DN, least significant RDN first
 2 Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
 3 scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
   - If the LDAP implementation supports 'subordinate' or 'children' (these are synonymous) then these are available as scopes as well
   - The default is 'sub'
-4 The service name is a string, which should name a group
-5 The 'cloud' section implements a callout to a server to fetch a group membership file
-6 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
+4 One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
+  attribute set to the empty string is equivalent to it being absent.
+5 The service name is a string, which should name a group
+6 The 'cloud' section implements a callout to a server to fetch a group membership file
+7 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
 
 ### Bypass
 
@@ -230,7 +271,7 @@ If Fred is not authorised through  the cloud or group sections, either because t
 
 This usermap is in the **users* section which expects a JSON object mapping the *remote* username to an array of permissible local usernames. Thus, the same user could have multiple local logins using this method.  If the local username is found here, Fred is considered authorised.  No suffix is used in this section.
 
-If Fred is not authorised through any of these methods, the module falls back to an LDAP lookup (if the **ldap** section is configured).  The LDAP query takes a configured filter and substitutes the *remote* username for a `%s` part of the filter, and queries a configured attribute.
+If Fred is not authorised through any of these methods, the module falls back to an LDAP lookup (if the **ldap** section is configured).  The LDAP query takes a configured filter and substitutes the *remote* username for a `%s` part of the filter, and queries a configured attribute.  There is also a filter\_local which, if filter is left out, will substitute the *local* username and run the query with that instead.
 
 If the filter is `(&(objectClass=user)(cn=%s))` then `bloggs` is substituted in our example, and a target attribute (configured with `attr`) is queried from the LDAP server.  For example, if `attr` has the value `uid` then the equivalent of
 
@@ -238,8 +279,9 @@ If the filter is `(&(objectClass=user)(cn=%s))` then `bloggs` is substituted in 
 ldapsearch -x -H ldap://host -b base '(&(objectClass=user)(cn=bloggs))' uid
 ```
 
-is run and the result is compared with the local username, `fred`.  If these match (no suffix is used), then Fred is again considered authorised.
+If this query is successful, then Fred is again considered authorised.
 
+If, alternatively, filter\_local is used, the local username is substituted, and the query for `attr` is run with the local username, checking whether it has a `uid` attribute.
 
 ## SSH Configuration
 
@@ -278,7 +320,7 @@ Note that testing *requires* that you install the module in the system location 
 
 ### Test 1: pam tester
 
-Follow instructions above, and additionally install `pamtester`.
+Follow instructions above, and additionally install `pamtester` (in Rocky, install EPEL (`epel-release`) first)
 
 Run
 ```
@@ -286,20 +328,52 @@ pamtester -v pamtester localusername authenticate
 ```
 and follow the onscreen prompts.  Here, `localusername` refers to your local user name so replace it with whatever your name is.
 
-You can check `/var/log/secure` or `/var/log/auth.log` to find what's wrong if there are errors authenticating.  While the module
+Note that if testing as an unprivileged user, pamtester must have permissions to read the configuration file.
+
+You can check `/var/log/secure` (Rocky) or `/var/log/auth.log` (Debian/Ubuntu) to find what's wrong if there are errors authenticating.  While the module
 uses syslog, syslog is normally set up to log PAM stuff into one of these files.
 
 ### Test 2: sshd
 
-While pamtester tests the authenticate section, you should try a proper ssh login from another host.  If you created `pamsshd` as above (and copied configuration as described above), start it with
+While pamtester tests the authenticate section of the PAM configuration, you should try a proper ssh login from another host.  If you created `pamsshd` as above (and copied configuration as described above), start it with
 
 ```
 /usr/local/sbin/pamsshd -f /etc/ssh/pamsshd_config -p 2222 -d
 ```
+Since it's listening on port 2222, it can run as an unprivileged user, but needs permission to read the configuration file.
 
 This should start `sshd` with the name `pamsshd` listening on port 2222.  Now try to log in from another host (bearing in mind the port should be open for incoming tcp).  On the other host, run `ssh -p 2222 localusername@myhost` where `localusername` is the local user name and `myhost` is the host running `pamsshd`.
 
 Again check the logs as in the previous tests.
+
+## Troubleshooting and Configuring OpenID Providers (OPs) to use with pam_oauth2_device
+
+This section provides some guidance on configuring the client to work with the module and troubleshooting
+if it doesn't work.
+
+### Client Registration and Configuration
+
+1. Check that the certificate of the OP's endpoint(s) validate(s) with the CA bundle or CA path
+   - Use a browser to save the certificate into a file, `cert.pem`, say
+   - Then check with this command:
+
+```
+openssl verify -CApath /etc/pki/certs cert.pem
+```
+or
+```
+openssl verify -CAfile /etc/pki/ca-bundle.pem cert.pem
+```
+where we have assumed your paths/bundles are in `/etc/pki` as above.  If the certificate does not validate, consider
+installing the root of the validation path into `/etc/pki`, e.g. `/etc/pki/root.pem`.  The easiest way to find the
+certificate is to use a browser to save it.
+
+2. Check that the scopes being requested by the PAM module is a subset of those allowed to the client
+   - Check that `offline_access` is included (on both ends)
+   - Check that the attribute used as `username_attribute` is included (on both ends)
+     - E.g. if `username_attribute` has the value `preferred_username`, ensure that the client is allowed
+       `preferred_username`
+
 
 ## Notable Versions
 
