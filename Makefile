@@ -33,7 +33,7 @@ distclean: clean
 
 install: pam_oauth2_device.so
 	install -D -t $(DESTDIR)$(PREFIX)/lib64/security pam_oauth2_device.so
-	install -m 600 -D config_template.json $(DESTDIR)$(PREFIX)/etc/pam_oauth2_device/config.json
+	install -b -m 600 -D config_template.json $(DESTDIR)$(PREFIX)/etc/pam_oauth2_device/config.json
 
 .PHONY: test tests
 

@@ -76,6 +76,9 @@ To install the module, copy `pam_oauth2_device.so` into the PAM modules director
 
 On Debian-based systems, this would be `/lib/x86_64-linux-gnu/security` whereas CentOS and related flavours would use `/usr/lib64/security`.  If in doubt, check `dpkg --L libpam-modules` or `rpm -ql pam` respectively.
 
+It is possible to just type `make install` and the installer is now fixed to the correct location on Rocky/CentOS.
+It still [overwrites the configuration](https://github.com/stfc/pam_oauth2_device/issues/14) but at least now creates a
+backup.
 
 ## Configuration
 
@@ -377,5 +380,6 @@ certificate is to use a browser to save it.
 
 ## Notable Versions
 
+- v1.04 fix for QR code from lahirujayathilake (from Escape chars to Unicode)
 - v1.03 support for segmented configuration files (as described above)
 - v1.00 (commit efd50f6376a65319a2834b957a2cf6bbe6b7aa2d) - first version for full scale DiRAC test
