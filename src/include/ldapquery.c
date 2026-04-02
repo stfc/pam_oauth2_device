@@ -108,7 +108,7 @@ int ldap_check_attr(void const *pamh, enum ldap_loglevel_t log,
             if ((vals = ldap_get_values_len( ld, res, a)) != NULL) {
                 for (i = 0; vals[i] != NULL; ++i) {
                     if (strcmp(a, attr) == 0) {
-                        if (strcmp(vals[i]->bv_val, value) == 0) {
+                        if (strcasecmp(vals[i]->bv_val, value) == 0) {
                             rc = LDAPQUERY_TRUE;
                         }
                     }
