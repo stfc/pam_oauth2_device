@@ -86,6 +86,7 @@ int ldap_check_attr(void const *pamh, enum ldap_loglevel_t log,
     }
 
     attr_local = strdup(attr);
+    attrs[0] = attr_local;
     if(log == LDAP_LOGLEVEL_DEBUG) {
 	pam_syslog(pamh, LOG_AUTHPRIV|LOG_DEBUG, "Search base=%s scope=%d filter=%s attr=%s", basedn, scope, filter, attrs[0]);
     }
@@ -107,8 +108,8 @@ int ldap_check_attr(void const *pamh, enum ldap_loglevel_t log,
         for (a = ldap_first_attribute( ld, res, &ber ); a != NULL; a = ldap_next_attribute( ld, res, ber )) {
             if ((vals = ldap_get_values_len( ld, res, a)) != NULL) {
                 for (i = 0; vals[i] != NULL; ++i) {
-                    if (strcmp(a, attr) == 0) {
-                        if (strcasecmp(vals[i]->bv_val, value) == 0) {
+                    if (strcasecmp(a, attr) == 0) {
+                        if (strcmp(vals[i]->bv_val, value) == 0) {
                             rc = LDAPQUERY_TRUE;
                         }
                     }
