@@ -518,7 +518,10 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	if (is_authorized(config, logger, username_local, ui)) {
 	    logger.log(pam_oauth2_log::log_level_t::INFO, "%s is authorised", username_local);
 	    return PAM_SUCCESS;
-	}
+	}  else {
+        logger.log(pam_oauth2_log::log_level_t::INFO, "%s is unauthorised", username_local);
+        return PAM_MAXTRIES;
+    }
     }
     catch(BaseError const &e)
     {
