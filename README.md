@@ -13,27 +13,38 @@ This code was originally developed by [Mazarykova Univerzita](https://github.com
 
 ## Build
 
-The upstream build uses basic `make` and we have stuck with this for compatibility reasons.
-The two basic targets are `make` and `make test`; the latter will build (some of) the tests and run them.
+The build system uses CMake (minimum version 3.16).
+The two basic targets are building the PAM module and running the tests:
+```bash
+cmake -B build
+cmake --build build
+```
+To run the tests:
+```bash
+ctest --test-dir build --output-on-failure
+# Or via CMake target:
+cmake --build build --target check
+```
 
-* Note that at present some of the integration tests are failing.
+* Note: `test_pam_oauth2_device` requires the mock server to be running (`python3 test/mock_server.py`).
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
 ### Manual build on Rocky 8
 
 From a base Rocky 8 system (tested with 8.10)
-```
-sudo dnf install gcc gcc-c++ make git
+```bash
+sudo dnf install gcc gcc-c++ cmake make git
 sudo dnf install pam-devel openldap-devel libcurl-devel json-devel
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device
-make 
+cmake -B build
+cmake --build build
 ```
 
 If you also want  `pamtester` (for testing, see below)
 
-```
+```bash
 sudo dnf install epel-release
 sudo dnf update
 sudo dnf install pamtester
@@ -42,43 +53,43 @@ sudo dnf install pamtester
 
 ### Manual Build on Scientific Linux or CentOS7
 
-```
+```bash
 yum install epel-release
-yum install openldap-devel
-yum install libcurl-devel
-yum install pam-devel
-yum install libldb-devel
+yum install cmake3 openldap-devel libcurl-devel pam-devel libldb-devel
 yum install http://ftp.scientificlinux.org/linux/scientific/7x/external_products/softwarecollections/yum-conf-softwarecollections-2.0-1.el7.noarch.rpm
 yum install devtoolset-8 # this is needed as we need a more up to date g++ version than is supplied by default in SL repos.
 scl enable devtoolset-8 bash
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device/
-make
-cp pam_oauth2_device.so /lib64/security/pam_oauth2_device.so
-cp config_template.json config.json
+cmake -B build
+cmake --build build
 ```
 
-### Build on Debian 13 or Ubuntu (22.04 LTS or )
+### Build on Debian 13 or Ubuntu (22.04 LTS or newer)
 
-```
-apt install libpam0g-dev
-apt install libcurl4-openssl-dev
-apt install libldap-dev
+```bash
+apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device/
-make
+cmake -B build
+cmake --build build
 ```
 Similarly, run `apt install pamtester` to get the tester, if required (see below)
 
 ## Installation
 
-To install the module, copy `pam_oauth2_device.so` into the PAM modules directory (usually with permissions 0755).
+To install the module:
 
-On Debian-based systems, this would be `/lib/x86_64-linux-gnu/security` whereas CentOS and related flavours would use `/usr/lib64/security`.  If in doubt, check `dpkg --L libpam-modules` or `rpm -ql pam` respectively.
+```bash
+sudo cmake --install build
+```
 
-It is possible to just type `make install` and the installer is now fixed to the correct location on Rocky/CentOS.
-It still [overwrites the configuration](https://github.com/stfc/pam_oauth2_device/issues/14) but at least now creates a
-backup.
+By default, CMake installs `pam_oauth2_device.so` into `${CMAKE_INSTALL_LIBDIR}/security` (e.g. `/usr/local/lib/security` or `/usr/lib64/security`) and `config.json` into `/etc/pam_oauth2_device/config.json`.
+You can customize the PAM module installation path via `PAM_MODULE_DIR` during configuration:
+```bash
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DPAM_MODULE_DIR=/lib/x86_64-linux-gnu/security
+sudo cmake --install build
+```
 
 ## Configuration
 
