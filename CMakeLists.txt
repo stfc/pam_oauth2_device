@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(pam_oauth2_device
-    VERSION 0.1.1
+    VERSION 1.05
     DESCRIPTION "PAM module for OAuth 2.0 Device flow"
     HOMEPAGE_URL "https://github.com/stfc/pam_oauth2_device"
     LANGUAGES C CXX
@@ -127,11 +127,11 @@ install(TARGETS pam_oauth2_device
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-install(FILES config_template.json
-    DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
-    RENAME config.json
-    PERMISSIONS OWNER_READ OWNER_WRITE
-)
+#install(FILES config_template.json
+#    DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
+#    RENAME config.json
+#    PERMISSIONS OWNER_READ OWNER_WRITE
+#)
 
 # Testing
 include(CTest)
