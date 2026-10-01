@@ -160,27 +160,28 @@ Thus, at the top level, there is a single object with a number of entries, descr
 
 #### Table 1: Configuring Authentication Flow
 
-| Section | Entry | Type | Req'd | Description | Notes |
-| --- | --- | --- | --- | --- | --- |
-| oauth | | Object | Y | | |
+| Section | Entry | Type | Req'd | Description   | Notes |
+| --- | --- | --- | --- |---------------| --- |
+| oauth | | Object | Y |               | |
 | oauth | client | Object | Y | Contains "id" and "secret" | |
-| oauth | scope | String | Y | OIDC scope | Note 1 |
+| oauth | scope | String | Y | OIDC scope    | Note 1 |
 | oauth | device\_endpoint | String | Y | Device endpoint | https://${url}/devicecode |
 | oauth | token\_endpoint | String | Y | Token endpoint | https://${url}/token |
-| oauth | userinfo\_endpoint | String | Y | Userinfo | https://${url}/userinfo |
+| oauth | userinfo\_endpoint | String | Y | Userinfo      | https://${url}/userinfo |
 | oauth | username\_attribute | String | Y | Attribute for remote username | |
 | oauth | local\_username\_suffix | String | Y | See usernames | |
-| tls | | Object | Y | | |
+| client_debug | | Bool | N | Enable debug  |
+| tls | | Object | Y |               | |
 | tls | ca\_bundle | String | N | Concatenated list of trust anchors | Note 2 |
 | tls | ca\_path | String | N | Directory with trust anchors | Note 2 |
 | tls | debug | bool | N | Extra certificate debug | |
-| qr | | Object | N | | |
-| qr | error\_correction\_level | Int | Y | QR code | Note 3 |
+| qr | | Object | N |               | |
+| qr | error\_correction\_level | Int | Y | QR code       | Note 3 |
 
 Notes:
 
-1 The string value should have a _space separated_ list of scopes which must include `offline_access`
-2 If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
+1. The string value should have a _space separated_ list of scopes which must include `offline_access`
+2. If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
    * "ca\_path" works only with OpenSSL
    * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS (or something different again)
    * If both ca\_path and ca\_bundle are present, the latter takes precedence
@@ -193,8 +194,8 @@ Notes:
 	 - OpenSSL supports the path.
    * Note that prior to curl 7.56, there is no sensible way for the curl client (i.e. the PAM module) to know what
      curl's TLS engine is (though you should still run `curl -V` by hand to check)
-3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
-4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
+3. The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
+4. The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
 
 #### Table 2: Configuring Authorisation Flow
 
@@ -224,16 +225,16 @@ This part of the module functionality carries a lot of legacy stuff; see the Aut
 | cloud | metadata\_file | String | Y | | Note 6 |
 | users | | Object | N | User Mapping section | Note 7 |
 
-1 The base DN, least significant RDN first
-2 Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
-3 scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
+1. The base DN, least significant RDN first
+2. Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
+3. scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
   - If the LDAP implementation supports 'subordinate' or 'children' (these are synonymous) then these are available as scopes as well
   - The default is 'sub'
-4 One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
+4. One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
   attribute set to the empty string is equivalent to it being absent.
-5 The service name is a string, which should name a group
-6 The 'cloud' section implements a callout to a server to fetch a group membership file
-7 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
+5. The service name is a string, which should name a group
+6. The 'cloud' section implements a callout to a server to fetch a group membership file
+7. The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
 
 ### Bypass
 
