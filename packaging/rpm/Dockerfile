@@ -3,6 +3,7 @@ FROM centos:7
 RUN yum install -y \
     gcc \
     gcc-c++ \
+    cmake \
     libcurl-devel \
     make \
     openldap-devel \

@@ -15,6 +15,7 @@ Source0: https://github.com/stfc/pam_oauth2_device/archive/v%{_version}.tar.gz
 # List of build-time dependencies:
 BuildRequires: gcc
 BuildRequires: gcc-c++
+BuildRequires: cmake
 BuildRequires: make
 BuildRequires: libcurl-devel
 BuildRequires: openldap-devel
@@ -36,14 +37,12 @@ identity provider using OAuth 2.0 Device Flow.
 
 
 %build
-make
+cmake -B build -DCMAKE_INSTALL_PREFIX=%{_prefix} -DPAM_MODULE_DIR=%{_lib}/security
+cmake --build build
 
 
 %install
-mkdir -p ${RPM_BUILD_ROOT}%{_lib}/security
-mkdir -p ${RPM_BUILD_ROOT}%{_sysconfdir}/pam_oauth2_device
-install pam_oauth2_device.so ${RPM_BUILD_ROOT}%{_lib}/security
-cp config_template.json ${RPM_BUILD_ROOT}%{_sysconfdir}/pam_oauth2_device/config.json
+DESTDIR=${RPM_BUILD_ROOT} cmake --install build
 
 
 %check
