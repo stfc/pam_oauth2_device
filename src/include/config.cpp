@@ -148,6 +148,7 @@ Config::load(const char *path)
 	 variable({"oauth","userinfo_endpoint"},value(""), true, userinfo_endpoint),
 	 variable({"oauth","username_attribute"},value(""),true, username_attribute),
 	 variable({"oauth","local_username_suffix"},value(""),false, local_username_suffix),
+	 variable({"oauth","accept_access_token"}, value(false), false, accept_access_token),
 	 variable({"qr","error_correction_level"},value(-1),false, qr_error_correction_level),
 	 variable({"client_debug"},value(false),false, client_debug),
 	 variable({"http_basic_auth"},value(true),false, http_basic_auth),

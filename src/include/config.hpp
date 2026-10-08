@@ -36,7 +36,8 @@ public:
          cloud_access,
          group_and_username_access,
          http_basic_auth,
-         client_debug;
+         client_debug,
+         accept_access_token;
     std::map<std::string, std::set<std::string>> usermap;
 };
 

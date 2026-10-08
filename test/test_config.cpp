@@ -43,6 +43,20 @@ TEST(ConfigTest, NoLdap)
     EXPECT_TRUE(config.ldap_host.empty());
 }
 
+TEST(ConfigTest, AcceptAccessTokenDefault)
+{
+    Config config;
+    config.load("data/template_noldap.json");
+    EXPECT_FALSE(config.accept_access_token);
+}
+
+TEST(ConfigTest, AcceptAccessTokenEnabled)
+{
+    Config config;
+    config.load("data/template_accept_token.json");
+    EXPECT_TRUE(config.accept_access_token);
+}
+
 TEST(ConfigTest, Full)
 {
     Config config;
@@ -53,6 +67,7 @@ TEST(ConfigTest, Full)
     EXPECT_EQ(config.usermap["provider_user_id_1"].count("bob"), 1);
     EXPECT_EQ(config.usermap.size(), 3);
     EXPECT_EQ(config.qr_error_correction_level, 0);
+    EXPECT_FALSE(config.accept_access_token);
 }
 
 } // namespace

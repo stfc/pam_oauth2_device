@@ -9,7 +9,8 @@
         "token_endpoint": "https://provider.com/token",
         "userinfo_endpoint": "https://provider.com/userinfo",
         "username_attribute": "preferred_username",
-        "local_username_suffix": ""
+        "local_username_suffix": "",
+        "accept_access_token": false
     },
     "tls": {
 	"ca_path": "/etc/pki/certificates"

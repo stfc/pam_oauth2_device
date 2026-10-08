@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <string>
+#include <memory>
 #include <security/pam_appl.h>
 #include "config.hpp"
 #include "metadata.hpp"
@@ -79,6 +80,12 @@ bool is_authorized(Config const &config,
 		   Userinfo const &userinfo,
 		   char const *metadata_path = nullptr);
 
+std::unique_ptr<Userinfo> validate_access_token(Config const &config,
+						pam_oauth2_log &logger,
+						std::string const &token,
+						std::string const &userinfo_endpoint,
+						std::string const &username_attribute);
+
 
 TEST(PamOAuth2Unit, QrCodeTest)
 {
@@ -128,6 +135,30 @@ EXPECT_TRUE(is_authorized_local(ui, "fred"));
 // local map test: remote name is not in list
 Userinfo ui2{"0123456789abcdef", "barney.test", "barney"};
 EXPECT_TRUE(!is_authorized_local(ui2, "barney"));
+}
+
+
+TEST(PamOAuth2Unit, ValidateAccessTokenAcceptsValidUserinfo)
+{
+    pam_oauth2_log log(nullptr, pam_oauth2_log::log_level_t::DEBUG);
+    Config cf;
+    TempFile userinfo_body(
+	"{\"sub\":\"0123456789abcdef\",\"name\":\"jdoe\",\"preferred_username\":\"fred.test\"}");
+    std::string endpoint = "file://" + userinfo_body.filename();
+    std::unique_ptr<Userinfo> ui = validate_access_token(cf, log, "dummy-token", endpoint, "preferred_username");
+    ASSERT_TRUE(static_cast<bool>(ui));
+    EXPECT_EQ(ui->username(), "fred.test");
+}
+
+TEST(PamOAuth2Unit, ValidateAccessTokenRejectsInvalidUserinfo)
+{
+    pam_oauth2_log log(nullptr, pam_oauth2_log::log_level_t::DEBUG);
+    Config cf;
+    // lacks "sub"/"name" -> get_userinfo throws ResponseError, as would happen for an expired/invalid token
+    TempFile userinfo_body("{\"error\":\"invalid_token\"}");
+    std::string endpoint = "file://" + userinfo_body.filename();
+    std::unique_ptr<Userinfo> ui = validate_access_token(cf, log, "dummy-token", endpoint, "preferred_username");
+    EXPECT_FALSE(static_cast<bool>(ui));
 }
 
 

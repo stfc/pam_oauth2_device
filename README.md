@@ -159,6 +159,7 @@ Thus, at the top level, there is a single object with a number of entries, descr
 | oauth | userinfo\_endpoint | String | Y | Userinfo | https://${url}/userinfo |
 | oauth | username\_attribute | String | Y | Attribute for remote username | |
 | oauth | local\_username\_suffix | String | Y | See usernames | |
+| oauth | accept\_access\_token | bool | N | Accept a client-supplied access token (via keyboard-interactive) and validate it against userinfo\_endpoint before falling back to the device flow | Note 5; default false |
 | tls | | Object | Y | | |
 | tls | ca\_bundle | String | N | Concatenated list of trust anchors | Note 2 |
 | tls | ca\_path | String | N | Directory with trust anchors | Note 2 |
@@ -184,6 +185,7 @@ Notes:
      curl's TLS engine is (though you should still run `curl -V` by hand to check)
 3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
 4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
+5 See [HOWTO.md](HOWTO.md) for how to use this together with `oidc-agent` and the `util/ssh-oidc-agent/ssh-oidc-agent.sh` wrapper script to skip the device flow when a valid access token is already available locally. Note that enabling `client_debug` causes libcurl to dump request headers (including the `Authorization: Bearer <token>` header) to stderr; don't enable it in production.
 
 #### Table 2: Configuring Authorisation Flow
 

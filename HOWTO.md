@@ -127,3 +127,59 @@ methods:
    - This includes the PAM authentication
  - Password authentication
 
+## Skipping the device flow with a pre-fetched oidc-agent token
+
+If you already run [oidc-agent](https://indigo-dc.github.io/oidc-agent/) locally with an account configured (see its
+[directory configuration docs](https://indigo-dc.github.io/oidc-agent/configuration/directory/) for how accounts are
+set up), you can avoid the interactive QR/browser dance on every login by handing the module a current access token
+up front.
+
+### Server-side configuration
+
+Set `accept_access_token` to `true` in the `oauth` section of `config.json`:
+
+```
+"oauth": {
+    ...
+    "accept_access_token": true
+}
+```
+
+With this enabled, the module adds one extra keyboard-interactive prompt *before* the device flow:
+
+```
+OAuth2 access token (leave blank for device flow):
+```
+
+ * If you answer with a valid, unexpired access token for this IdP (validated by calling `userinfo_endpoint` with it
+   as a Bearer token), you are logged in immediately, subject to the same authorisation checks (group/cloud/usermap/LDAP)
+   that would otherwise be applied to a token obtained via the device flow.
+ * If you leave it blank, or the token is rejected, the module falls back to the normal device flow exactly as if
+   `accept_access_token` were not set.
+ * If the token validates but you are not authorised, login fails immediately (no fallback to the device flow) — this
+   matches the behaviour of an authorised-but-rejected token obtained via the device flow.
+
+With the flag left at its default (`false`), there is no behaviour change at all: no extra prompt is shown.
+
+### Client-side: answering the prompt automatically
+
+A plain interactive `ssh` session will just show you the new prompt like any other, and you can paste a token from
+`oidc-token <shortname>` into it by hand. To automate this (so a normal `ssh ...` login becomes a single command),
+a wrapper script is provided at [util/ssh-oidc-agent/ssh-oidc-agent.sh](util/ssh-oidc-agent/ssh-oidc-agent.sh). It requires `expect` to be
+installed locally, and uses it to answer *only* the new prompt automatically, leaving every other prompt (including a
+device-flow fallback) to pass through to your terminal normally:
+
+```
+util/ssh-oidc-agent/ssh-oidc-agent.sh <oidc-agent-shortname> user@host [port]
+```
+
+For example, with an oidc-agent account configured under the shortname `iris`:
+
+```
+util/ssh-oidc-agent/ssh-oidc-agent.sh iris fred@example.com 2222
+```
+
+Note the prompt text above is effectively a protocol between the server module and this script: if you ever change
+`access_token_prompt` in `src/pam_oauth2_device.cpp`, update the `PROMPT_SUBSTR` in the script (and any other client
+wrapper you may be using) to match.
+
