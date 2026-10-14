@@ -132,7 +132,12 @@ find_path(PAM_CONFIG_INSTALL_DIR config.json
         PATHS "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
                 /etc/pam_oauth2_device
                 /usr/local/etc/pam_oauth2_device OPTIONAL)
-message(DEBUG "Existing config directory ${PAM_CONFIG_INSTALL_DIR} found")
+if(PAM_CONFIG_INSTALL_DIR)
+    message(DEBUG "Existing config directory ${PAM_CONFIG_INSTALL_DIR} found")
+else()
+    set(PAM_CONFIG_INSTALL_DIR "/etc/pam_oauth2_device" DOC "Install location for configuration file")
+    message(DEBUG "No config dir found, using ${PAM_CONFIG_INSTALL_DIR}")
+endif()
 
 # Try to locate the correct location to install the PAM module
 # Observationally, it seems to be in "security" under the location of the PAM library
