@@ -14,6 +14,7 @@
 //#include <regex>
 #include <cstdio>
 #include <fstream>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 
 #include "include/config.hpp"
@@ -25,9 +26,15 @@
 #include "include/pam_oauth2_log.hpp"
 #include "pam_oauth2_device.hpp"
 
+#include <filesystem>
+#include <filesystem>
+
 using json = nlohmann::json;
 
-constexpr char const *config_path = "/etc/pam_oauth2_device/config.json";
+// Legacy install path
+constexpr char const *config_path1 = "/etc/pam_oauth2_device/config.json";
+// Less intrusive install path
+constexpr char const *config_path2 = "/usr/local/etc/pam_oauth2_device/config.json";
 
 
 //! Function to parse the PAM args (as supplied in the PAM config), updating our config
@@ -547,8 +554,24 @@ parse_args(Config &config, [[maybe_unused]] int flags, int argc, const char **ar
 {
     try
     {
-        // TODO reallow override in argv
-        config.load(config_path);
+        // TODO reallow override in argv?
+	// The newer path should be picked over the legacy one
+    	const std::array<char const *, 2> files{ config_path2, config_path1 };
+    	// As we are now on C++17, we can use the filesystem in std
+	auto const filename = std::find_if(files.cbegin(), files.cend(),
+		[](auto const file) -> bool
+		{
+			std::filesystem::path f(file);
+			auto stats = std::filesystem::status(f);
+			return std::filesystem::exists(stats);
+		});
+	if(filename == files.cend())
+	{
+		logger.log(pam_oauth2_log::log_level_t::ERR, "Could not find config file '%s'", config_path2);
+	}
+
+    	// if a file exists but is not readable, it is an error; we don't try the next one
+    	config.load(*filename);
     }
     catch (json::exception &e)
     {
