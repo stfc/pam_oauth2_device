@@ -43,6 +43,10 @@ if(PAM_FOUND AND NOT TARGET PAM::PAM)
     )
 endif()
 
+# dirname of PAM library
+string(REGEX MATCH "^.*/" PAM_LIBRARY_PATH ${PAM_LIBRARY})
+message(DEBUG "Pam library path ${PAM_LIBRARY_PATH}")
+
 # 4. LDAP & LBER
 find_path(LDAP_INCLUDE_DIR NAMES ldap.h)
 find_library(LDAP_LIBRARY NAMES ldap)
@@ -118,20 +122,48 @@ if(BUILD_UTILS)
 endif()
 
 # Installation
+# GNU dirs provide default prefix /usr/local which won't work as install location
+# for the library as /usr/local/.../secure is not searched when locating PAM mods
+# see also #7
 include(GNUInstallDirs)
 
-set(PAM_MODULE_DIR "${CMAKE_INSTALL_LIBDIR}/security" CACHE PATH "Installation directory for PAM modules")
+# If a configuration directory and file already exist, prefer those over a default
+find_path(PAM_CONFIG_INSTALL_DIR config.json
+        PATHS "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
+                /etc/pam_oauth2_device
+                /usr/local/etc/pam_oauth2_device OPTIONAL)
+message(DEBUG "Existing config directory ${PAM_CONFIG_INSTALL_DIR} found")
+
+# Try to locate the correct location to install the PAM module
+# Observationally, it seems to be in "security" under the location of the PAM library
+
+find_path(PAM_MODULE_DIR NAMES pam_access.so pam_deny.so pam_permit.so pam_env.so
+        PATHS   "${PAM_LIBRARY_PATH}/security"
+                "${CMAKE_INSTALL_LIBDIR}/security"
+                "/usr/lib64/security"                               # RedHat flavoured systems
+                "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/security"   # Debian flavour
+        DOC "location of system PAM modules"
+        REQUIRED
+)
+
+message(DEBUG "Installing module into ${PAM_MODULE_DIR}")
 
 install(TARGETS pam_oauth2_device
     LIBRARY DESTINATION "${PAM_MODULE_DIR}"
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-#install(FILES config_template.json
-#    DESTINATION "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
-#    RENAME config.json
-#    PERMISSIONS OWNER_READ OWNER_WRITE
-#)
+# Only install template if a configuration file does not exist! (re-fix #14)
+if(EXISTS "${PAM_CONFIG_INSTALL_DIR}/config.json")
+    message(DEBUG "Not overwriting existing config ${PAM_CONFIG_INSTALL_DIR}/config.json")
+else()
+    install(FILES config_template.json
+        DESTINATION "${PAM_CONFIG_INSTALL_DIR}"
+        RENAME config.json
+        PERMISSIONS OWNER_READ OWNER_WRITE
+        COMPONENT config
+    )
+endif ()
 
 # Testing
 include(CTest)
