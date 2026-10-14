@@ -128,6 +128,7 @@ endif()
 include(GNUInstallDirs)
 
 # If a configuration directory and file already exist, prefer those over a default
+# (if a non-default directory exists but is empty, it is ignored)
 find_path(PAM_CONFIG_INSTALL_DIR config.json
         PATHS "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
                 /etc/pam_oauth2_device
