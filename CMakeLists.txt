@@ -135,7 +135,7 @@ find_path(PAM_CONFIG_INSTALL_DIR config.json
 if(PAM_CONFIG_INSTALL_DIR)
     message(DEBUG "Existing config directory ${PAM_CONFIG_INSTALL_DIR} found")
 else()
-    set(PAM_CONFIG_INSTALL_DIR "/etc/pam_oauth2_device" DOC "Install location for configuration file")
+    set(PAM_CONFIG_INSTALL_DIR "/etc/pam_oauth2_device")
     message(DEBUG "No config dir found, using ${PAM_CONFIG_INSTALL_DIR}")
 endif()
 
