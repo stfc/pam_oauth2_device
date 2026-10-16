@@ -144,10 +144,10 @@ endif()
 # Observationally, it seems to be in "security" under the location of the PAM library
 
 find_path(PAM_MODULE_DIR NAMES pam_access.so pam_deny.so pam_permit.so pam_env.so
-        PATHS   "${PAM_LIBRARY_PATH}/security"
-                "${CMAKE_INSTALL_LIBDIR}/security"
+        PATHS   "${PAM_LIBRARY_PATH}/security"                      # Should cover any distro
                 "/usr/lib64/security"                               # RedHat flavoured systems
                 "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}/security"   # Debian flavour
+                "${CMAKE_INSTALL_LIBDIR}/security"
         DOC "location of system PAM modules"
         REQUIRED
 )
