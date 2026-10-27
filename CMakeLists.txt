@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.25)
 
 project(pam_oauth2_device
     VERSION 1.05
@@ -129,10 +129,23 @@ include(GNUInstallDirs)
 
 # If a configuration directory and file already exist, prefer those over a default
 # (if a non-default directory exists but is empty, it is ignored)
-find_path(PAM_CONFIG_INSTALL_DIR config.json
-        PATHS "${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device"
-                /etc/pam_oauth2_device
-                /usr/local/etc/pam_oauth2_device OPTIONAL)
+#
+# Note the config file may have mode 600 (particularly if it contains the secrets inside
+# it, as opposed to putting the secrets in a separate file), and find_path will
+# fail to recognise it if cmake is run as non-root, and when install runs sudo,
+# the config file will then be overwritten.  find_path will also fail if the
+# directory is 700.  Other tools like EXISTS or even TIMESTAMP also fail.
+
+# Where to put the configuration template - but do not overwrite an existing configuration
+foreach( candidate_abs_path /etc/pam_oauth2_device
+		/usr/local/etc/pam_oauth2_device 
+		"${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device" )
+    if(IS_DIRECTORY "${candidate_abs_path}")
+    	set(PAM_CONFIG_INSTALL_DIR ${candidate_abs_path} )
+    	break()
+    endif()
+endforeach()
+
 if(PAM_CONFIG_INSTALL_DIR)
     message(DEBUG "Existing config directory ${PAM_CONFIG_INSTALL_DIR} found")
 else()
@@ -159,17 +172,12 @@ install(TARGETS pam_oauth2_device
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-# Only install template if a configuration file does not exist! (re-fix #14)
-if(EXISTS "${PAM_CONFIG_INSTALL_DIR}/config.json")
-    message(DEBUG "Not overwriting existing config ${PAM_CONFIG_INSTALL_DIR}/config.json")
-else()
-    install(FILES config_template.json
-        DESTINATION "${PAM_CONFIG_INSTALL_DIR}"
-        RENAME config.json
-        PERMISSIONS OWNER_READ OWNER_WRITE
-        COMPONENT config
-    )
-endif ()
+# Very clunky hack. At install time, the config file location should be writeable
+install(CODE "if(IS_WRITABLE ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
+        file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        message(INFO "Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json")
+    endif()")
 
 # Testing
 include(CTest)
