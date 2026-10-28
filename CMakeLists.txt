@@ -138,7 +138,7 @@ include(GNUInstallDirs)
 
 # Where to put the configuration template - but do not overwrite an existing configuration
 foreach( candidate_abs_path /etc/pam_oauth2_device
-		/usr/local/etc/pam_oauth2_device 
+		/usr/local/etc/pam_oauth2_device
 		"${CMAKE_INSTALL_SYSCONFDIR}/pam_oauth2_device" )
     if(IS_DIRECTORY "${candidate_abs_path}")
     	set(PAM_CONFIG_INSTALL_DIR ${candidate_abs_path} )
@@ -176,7 +176,7 @@ install(TARGETS pam_oauth2_device
 install(CODE "if(IS_WRITABLE ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
         file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
         file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
-        message(INFO "Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json")
+        message(INFO \"Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json\")
     endif()")
 
 # Testing
