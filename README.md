@@ -13,27 +13,38 @@ This code was originally developed by [Mazarykova Univerzita](https://github.com
 
 ## Build
 
-The upstream build uses basic `make` and we have stuck with this for compatibility reasons.
-The two basic targets are `make` and `make test`; the latter will build (some of) the tests and run them.
+The build system uses CMake (minimum version 3.16).
+The two basic targets are building the PAM module and running the tests:
+```bash
+cmake -B build
+cmake --build build
+```
+To run the tests:
+```bash
+ctest --test-dir build --output-on-failure
+# Or via CMake target:
+cmake --build build --target check
+```
 
-* Note that at present some of the integration tests are failing.
+* Note: `test_pam_oauth2_device` requires the mock server to be running (`python3 test/mock_server.py`).
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
 ### Manual build on Rocky 8
 
 From a base Rocky 8 system (tested with 8.10)
-```
-sudo dnf install gcc gcc-c++ make git
+```bash
+sudo dnf install gcc gcc-c++ cmake make git
 sudo dnf install pam-devel openldap-devel libcurl-devel json-devel
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device
-make 
+cmake -B build
+cmake --build build
 ```
 
 If you also want  `pamtester` (for testing, see below)
 
-```
+```bash
 sudo dnf install epel-release
 sudo dnf update
 sudo dnf install pamtester
@@ -42,43 +53,43 @@ sudo dnf install pamtester
 
 ### Manual Build on Scientific Linux or CentOS7
 
-```
+```bash
 yum install epel-release
-yum install openldap-devel
-yum install libcurl-devel
-yum install pam-devel
-yum install libldb-devel
+yum install cmake3 openldap-devel libcurl-devel pam-devel libldb-devel
 yum install http://ftp.scientificlinux.org/linux/scientific/7x/external_products/softwarecollections/yum-conf-softwarecollections-2.0-1.el7.noarch.rpm
 yum install devtoolset-8 # this is needed as we need a more up to date g++ version than is supplied by default in SL repos.
 scl enable devtoolset-8 bash
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device/
-make
-cp pam_oauth2_device.so /lib64/security/pam_oauth2_device.so
-cp config_template.json config.json
+cmake -B build
+cmake --build build
 ```
 
-### Build on Debian 13 or Ubuntu (22.04 LTS or )
+### Build on Debian 13 or Ubuntu (22.04 LTS or newer)
 
-```
-apt install libpam0g-dev
-apt install libcurl4-openssl-dev
-apt install libldap-dev
+```bash
+apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device/
-make
+cmake -B build
+cmake --build build
 ```
 Similarly, run `apt install pamtester` to get the tester, if required (see below)
 
 ## Installation
 
-To install the module, copy `pam_oauth2_device.so` into the PAM modules directory (usually with permissions 0755).
+To install the module:
 
-On Debian-based systems, this would be `/lib/x86_64-linux-gnu/security` whereas CentOS and related flavours would use `/usr/lib64/security`.  If in doubt, check `dpkg --L libpam-modules` or `rpm -ql pam` respectively.
+```bash
+sudo cmake --install build
+```
 
-It is possible to just type `make install` and the installer is now fixed to the correct location on Rocky/CentOS.
-It still [overwrites the configuration](https://github.com/stfc/pam_oauth2_device/issues/14) but at least now creates a
-backup.
+By default, CMake installs `pam_oauth2_device.so` into `${CMAKE_INSTALL_LIBDIR}/security` (e.g. `/usr/local/lib/security` or `/usr/lib64/security`) and `config.json` into `/etc/pam_oauth2_device/config.json`.
+You can customize the PAM module installation path via `PAM_MODULE_DIR` during configuration:
+```bash
+cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DPAM_MODULE_DIR=/lib/x86_64-linux-gnu/security
+sudo cmake --install build
+```
 
 ## Configuration
 
@@ -149,27 +160,28 @@ Thus, at the top level, there is a single object with a number of entries, descr
 
 #### Table 1: Configuring Authentication Flow
 
-| Section | Entry | Type | Req'd | Description | Notes |
-| --- | --- | --- | --- | --- | --- |
-| oauth | | Object | Y | | |
+| Section | Entry | Type | Req'd | Description   | Notes |
+| --- | --- | --- | --- |---------------| --- |
+| oauth | | Object | Y |               | |
 | oauth | client | Object | Y | Contains "id" and "secret" | |
-| oauth | scope | String | Y | OIDC scope | Note 1 |
+| oauth | scope | String | Y | OIDC scope    | Note 1 |
 | oauth | device\_endpoint | String | Y | Device endpoint | https://${url}/devicecode |
 | oauth | token\_endpoint | String | Y | Token endpoint | https://${url}/token |
-| oauth | userinfo\_endpoint | String | Y | Userinfo | https://${url}/userinfo |
+| oauth | userinfo\_endpoint | String | Y | Userinfo      | https://${url}/userinfo |
 | oauth | username\_attribute | String | Y | Attribute for remote username | |
 | oauth | local\_username\_suffix | String | Y | See usernames | |
-| tls | | Object | Y | | |
+| client_debug | | Bool | N | Enable debug  |
+| tls | | Object | Y |               | |
 | tls | ca\_bundle | String | N | Concatenated list of trust anchors | Note 2 |
 | tls | ca\_path | String | N | Directory with trust anchors | Note 2 |
 | tls | debug | bool | N | Extra certificate debug | |
-| qr | | Object | N | | |
-| qr | error\_correction\_level | Int | Y | QR code | Note 3 |
+| qr | | Object | N |               | |
+| qr | error\_correction\_level | Int | Y | QR code       | Note 3 |
 
 Notes:
 
-1 The string value should have a _space separated_ list of scopes which must include `offline_access`
-2 If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
+1. The string value should have a _space separated_ list of scopes which must include `offline_access`
+2. If present, the "ca\_bundle" must be a file with PEM-formatted trust anchors (CA certificates) concatenated together.
    * "ca\_path" works only with OpenSSL
    * On the target system, use `curl -V` to see whether curl uses OpenSSL or NSS (or something different again)
    * If both ca\_path and ca\_bundle are present, the latter takes precedence
@@ -182,8 +194,8 @@ Notes:
 	 - OpenSSL supports the path.
    * Note that prior to curl 7.56, there is no sensible way for the curl client (i.e. the PAM module) to know what
      curl's TLS engine is (though you should still run `curl -V` by hand to check)
-3 The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
-4 The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
+3. The QR code section is optional but if present, it must have the error correction level defined.  Permitted values are 1 (low), 2 (medium), 3 (high) or -1 (disabled).  If the section is missing, the QR code is disabled.
+4. The "${url}" above would be the URL (hostname) of your OpenID Provider.  Its host certificate must be valid when checked against the CA bundle (see item 2)
 
 #### Table 2: Configuring Authorisation Flow
 
@@ -213,16 +225,16 @@ This part of the module functionality carries a lot of legacy stuff; see the Aut
 | cloud | metadata\_file | String | Y | | Note 6 |
 | users | | Object | N | User Mapping section | Note 7 |
 
-1 The base DN, least significant RDN first
-2 Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
-3 scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
+1. The base DN, least significant RDN first
+2. Username and password are for authentication to the LDAP server, if used; if not used, just leave them as empty strings
+3. scope is one of 'sub'/'subtree', 'one'/'onelevel' or 'base'/'baseobject'
   - If the LDAP implementation supports 'subordinate' or 'children' (these are synonymous) then these are available as scopes as well
   - The default is 'sub'
-4 One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
+4. One of filter or filter\_local is required if the ldap section is present.  If both are present, filter takes precendence.  An
   attribute set to the empty string is equivalent to it being absent.
-5 The service name is a string, which should name a group
-6 The 'cloud' section implements a callout to a server to fetch a group membership file
-7 The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
+5. The service name is a string, which should name a group
+6. The 'cloud' section implements a callout to a server to fetch a group membership file
+7. The 'users' section provides mappings from the username attribute (selected with username\_attribute) to a local user id.
 
 ### Bypass
 
