@@ -172,12 +172,21 @@ install(TARGETS pam_oauth2_device
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-# Very clunky hack. At install time, the config file location should be writeable
-install(CODE "if(IS_WRITABLE ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+# Slightly clunky hack. At install time, the config file location should be writeable
+# IS_WRITABLE is the more accurate check but is not available before 3.29
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
+    install(CODE "if(IS_WRITABLE ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
         file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
         file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
         message(INFO \"Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json\")
     endif()")
+else()
+    install(CODE "if(EXISTS ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
+        file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        message(INFO \"Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json\")
+    endif()")
+endif()
 
 # Testing
 include(CTest)
