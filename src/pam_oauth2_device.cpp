@@ -140,7 +140,7 @@ std::string DeviceAuthResponse::get_prompt(const int qr_ecc = 0)
 {
     bool complete_url = !verification_uri_complete.empty();
     std::ostringstream prompt;
-    prompt << "Authenticate at\n-----------------\n"
+    prompt << "Visit the folowing URL to Authenticate\n-----------------\n"
            << (complete_url ? verification_uri_complete : verification_uri)
            << "\n-----------------\n";
     if (!complete_url)
@@ -154,11 +154,13 @@ std::string DeviceAuthResponse::get_prompt(const int qr_ecc = 0)
                << std::endl
                << std::endl
                << getQr((complete_url ? verification_uri_complete : verification_uri).c_str(), qr_ecc)
-               << std::endl
-               << "Hit enter when you have finished authenticating\n";
-    } else {
-        prompt << "Hit enter when you have finished authenticating\n";
+               << std::endl;
     }
+    prompt << "Hit enter to start checking authentication every "
+           << std::to_string(interval)
+           << " seconds\nYou have "
+           << std::to_string(expires_in)
+           << " seconds to finish authenticating\n";
     return prompt.str();
 }
 
@@ -185,6 +187,13 @@ void make_authorization_request(const Config &config,
         response->user_code = data.at("user_code");
         response->device_code = data.at("device_code");
         response->verification_uri = data.at("verification_uri");
+        response->expires_in = data.at("expires_in");
+	if (data.find("interval") != data.end())
+        {
+            response->interval = data.at("interval");
+        }else{
+            response->interval = 5;
+	}
         if (data.find("verification_uri_complete") != data.end())
         {
             response->verification_uri_complete = data.at("verification_uri_complete");
@@ -202,10 +211,10 @@ void poll_for_token(Config const &config,
                     std::string const &client_secret,
                     std::string const &token_endpoint,
                     std::string const &device_code,
-                    std::string &token)
+                    std::string &token,
+		    int timeout,
+		    int interval)
 {
-    int timeout = 300,
-        interval = 3;
     json data;
 
     pam_oauth2_curl curl(config);
@@ -519,7 +528,7 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
         poll_for_token(config, logger,
 		       config.client_id, config.client_secret,
                        config.token_endpoint,
-                       device_auth_response.device_code, token);
+                       device_auth_response.device_code, token, device_auth_response.expires_in, device_auth_response.interval);
         Userinfo ui{get_userinfo(config, logger, config.userinfo_endpoint, token,
 				 config.username_attribute)};
 	if (is_authorized(config, logger, username_local, ui)) {
