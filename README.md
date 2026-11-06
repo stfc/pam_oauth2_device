@@ -13,7 +13,7 @@ This code was originally developed by [Mazarykova Univerzita](https://github.com
 
 ## Build
 
-The build system uses CMake (minimum version 3.16).
+The build system uses CMake (minimum version 3.19).
 
 We recommend using a tagged release, e.g. `v1.05` because the master branch can have unresolved issues.  The changelog is [here](#changelog)
 
@@ -56,7 +56,7 @@ sudo dnf install pamtester
 
 
 
-### Build on Debian 13 or Ubuntu 24.04 LTS or newer
+### Build on Debian 13 or Ubuntu 22.04 LTS or newer
 
 ```bash
 apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
