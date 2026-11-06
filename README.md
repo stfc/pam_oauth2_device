@@ -13,7 +13,7 @@ This code was originally developed by [Mazarykova Univerzita](https://github.com
 
 ## Build
 
-The build system uses CMake (minimum version 3.16).
+The build system uses CMake (minimum version 3.19).
 
 We recommend using a tagged release, e.g. `v1.05` because the master branch can have unresolved issues.  The changelog is [here](#changelog)
 

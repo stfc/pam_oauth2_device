@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.19)
+
+# 3.19 is required for file(CHMOD...)
 
 project(pam_oauth2_device
     VERSION 1.05
@@ -185,14 +187,14 @@ endif()
     message(INFO \"Created config directory ${PAM_CONFIG_INSTALL_DIR})\")")
 endif()
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
-    install(CODE "file(CHMOD \"${PAM_CONFIG_INSTALL_DIR}\" DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)")
-endif()
+install(CODE "file(CHMOD \"${PAM_CONFIG_INSTALL_DIR}\" DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)")
+
 
 install(CODE
     "if(EXISTS \"${PAM_CONFIG_INSTALL_DIR}\" AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
         file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
         file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        file(CHMOD \"${PAM_CONFIG_INSTALL_DIR}/config.json\" FILE_PERMISSIONS OWNER_READ OWNER_WRITE)
         message(INFO \"Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json\")
     endif()")
 
