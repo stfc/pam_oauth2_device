@@ -38,6 +38,14 @@ constexpr char const *config_path2 = "/usr/local/etc/pam_oauth2_device/config.js
 
 
 //! Function to parse the PAM args (as supplied in the PAM config), updating our config
+
+/*! \param config the config structure which will be filled with what we find
+ * \param flags if PAM_SILENT is set, suppress logging after the parse is successful
+ * \param argc usual count of arguments
+ * \param argv usual arguments array
+ * \param logger reference to the logger for any issues found along the way
+ * \return true if all went well
+ */
 bool parse_args(Config &config, int flags, int argc, const char **argv, pam_oauth2_log &logger);
 
 // Magic string for 'users' section to define local users for whom we bypass the module (eg root)
@@ -571,6 +579,7 @@ parse_args(Config &config, [[maybe_unused]] int flags, int argc, const char **ar
 	if(filename == files.cend())
 	{
 		logger.log(pam_oauth2_log::log_level_t::ERR, "Could not find config file '%s'", config_path2);
+		return false;
 	}
 
     	// if a file exists but is not readable, it is an error; we don't try the next one

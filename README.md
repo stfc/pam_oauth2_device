@@ -6,7 +6,7 @@ It uses the OAuth2 Device Flow, which means that during the login process, you w
 
 This module will then check if you're in the right group(s) or have a specified username, and allow or deny access.
 
-A demo video is avaliable here: https://drive.google.com/file/d/1WzDRL0RFDXfvUgabbXNzBppV-DKXyUN1/view?usp=sharing
+A demo video is available here: https://drive.google.com/file/d/1WzDRL0RFDXfvUgabbXNzBppV-DKXyUN1/view?usp=sharing
 
 This code was originally developed by [Mazarykova Univerzita](https://github.com/ICS-MU/pam_oauth2_device) and [this branch](https://github.com/stfc/pam_oauth2_device) has been refactored by UKRI-STFC as a part of the [IRIS](https://www.iris.ac.uk/) activity.  This work was funded by [STFC](https://www.ukri.org/councils/stfc/), a part of [UK Research and Innovation (UKRI)](https://www.ukri.org/).
 
@@ -14,6 +14,9 @@ This code was originally developed by [Mazarykova Univerzita](https://github.com
 ## Build
 
 The build system uses CMake (minimum version 3.16).
+
+We recommend using a tagged release, e.g. `v1.05` because the master branch can have unresolved issues.  The changelog is [here](#changelog)
+
 The two basic targets are building the PAM module and running the tests:
 ```bash
 cmake -B build
@@ -30,7 +33,7 @@ cmake --build build --target check
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
-### Manual build on Rocky 8
+### Build on Rocky 8
 
 From a base Rocky 8 system (tested with 8.10)
 ```bash
@@ -51,21 +54,9 @@ sudo dnf install pamtester
 ```
 
 
-### Manual Build on Scientific Linux or CentOS7
 
-```bash
-yum install epel-release
-yum install cmake3 openldap-devel libcurl-devel pam-devel libldb-devel
-yum install http://ftp.scientificlinux.org/linux/scientific/7x/external_products/softwarecollections/yum-conf-softwarecollections-2.0-1.el7.noarch.rpm
-yum install devtoolset-8 # this is needed as we need a more up to date g++ version than is supplied by default in SL repos.
-scl enable devtoolset-8 bash
-git clone https://github.com/stfc/pam_oauth2_device.git
-cd pam_oauth2_device/
-cmake -B build
-cmake --build build
-```
 
-### Build on Debian 13 or Ubuntu (22.04 LTS or newer)
+### Build on Debian 13 or Ubuntu 24.04 LTS or newer
 
 ```bash
 apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
@@ -74,7 +65,7 @@ cd pam_oauth2_device/
 cmake -B build
 cmake --build build
 ```
-Similarly, run `apt install pamtester` to get the tester, if required (see below)
+Similarly, run `apt install pamtester` to get the tester, if required (see [below](#test-1-pam-tester))
 
 ## Installation
 
@@ -317,6 +308,13 @@ ChallengeResponseAuthentication yes
 UsePAM yes
 ```
 
+For [OpenSSH](https://www.openssh.org/releasenotes.html), note that `ChallengeResponseAuthentication` has been replaced
+with `KbdInteractiveAuthentication`, so
+```
+KbdInteractiveAuthentication yes
+UsePAM yes
+``` 
+Finally, restart:
 ```
 systemctl restart sshd
 ```
@@ -339,7 +337,7 @@ Follow instructions above, and additionally install `pamtester` (in Rocky, insta
 
 Run
 ```
-pamtester -v pamtester localusername authenticate
+pamtester -v pamsshd localusername authenticate
 ```
 and follow the onscreen prompts.  Here, `localusername` refers to your local user name so replace it with whatever your name is.
 
@@ -390,8 +388,11 @@ certificate is to use a browser to save it.
        `preferred_username`
 
 
-## Notable Versions
+## Changelog
 
+A release corresponds to a *tag* in the repository.  Any releases that have not appeared yet should be construed as 
+
+- v1.05 migrated build system to CMake and fixed installer
 - v1.04 fix for QR code from lahirujayathilake (from Escape chars to Unicode)
 - v1.03 support for segmented configuration files (as described above)
 - v1.00 (commit efd50f6376a65319a2834b957a2cf6bbe6b7aa2d) - first version for full scale DiRAC test
