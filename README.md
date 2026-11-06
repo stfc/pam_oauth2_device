@@ -33,9 +33,9 @@ cmake --build build --target check
 * Note you can build RPMs and DEBs, though currently they are designed for CentOS7 and Ubuntu 18.04 respectively.
   * The build currently requires Docker (or compatible)
 
-### Build on Rocky 8
+### Build on Rocky (RedHat flavoured systems)
 
-From a base Rocky 8 system (tested with 8.10)
+From a base Rocky system (tested with 8.10 and 9.8)
 ```bash
 sudo dnf install gcc gcc-c++ cmake make git
 sudo dnf install pam-devel openldap-devel libcurl-devel json-devel
@@ -54,18 +54,16 @@ sudo dnf install pamtester
 ```
 
 
-
-
 ### Build on Debian 13 or Ubuntu 22.04 LTS or newer
 
 ```bash
-apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
+sudo apt install cmake build-essential libpam0g-dev libcurl4-openssl-dev libldap-dev nlohmann-json3-dev libgtest-dev
 git clone https://github.com/stfc/pam_oauth2_device.git
 cd pam_oauth2_device/
 cmake -B build
 cmake --build build
 ```
-Similarly, run `apt install pamtester` to get the tester, if required (see [below](#test-1-pam-tester))
+Similarly, run `sudo apt install pamtester` to get the tester, if required (see [below](#test-1-pam-tester))
 
 ## Installation
 
