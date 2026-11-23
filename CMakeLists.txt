@@ -1,4 +1,6 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.19)
+
+# 3.19 is required for file(CHMOD...)
 
 project(pam_oauth2_device
     VERSION 1.05
@@ -172,12 +174,30 @@ install(TARGETS pam_oauth2_device
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
 )
 
-# Very clunky hack. At install time, the config file location should be writeable
-install(CODE "if(IS_WRITABLE ${PAM_CONFIG_INSTALL_DIR} AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+# Slightly clunky hack. At install time, the config file location should be writeable
+# IS_WRITABLE is the more accurate check but is not available before 3.29
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
+    install(CODE "if(NOT IS_WRITABLE \"${PAM_CONFIG_INSTALL_DIR}\")
+    file(MAKE_DIRECTORY \"${PAM_CONFIG_INSTALL_DIR}\")
+endif()")
+else()
+    install(CODE "if(NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}\")
+    file(MAKE_DIRECTORY \"${PAM_CONFIG_INSTALL_DIR}\")
+endif()
+    message(INFO \"Created config directory ${PAM_CONFIG_INSTALL_DIR})\")")
+endif()
+
+install(CODE "file(CHMOD \"${PAM_CONFIG_INSTALL_DIR}\" DIRECTORY_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)")
+
+
+install(CODE
+    "if(EXISTS \"${PAM_CONFIG_INSTALL_DIR}\" AND NOT EXISTS \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
         file(COPY \"${CMAKE_SOURCE_DIR}/config_template.json\" DESTINATION \"${PAM_CONFIG_INSTALL_DIR}\")
         file(RENAME \"${PAM_CONFIG_INSTALL_DIR}/config_template.json\"  \"${PAM_CONFIG_INSTALL_DIR}/config.json\")
+        file(CHMOD \"${PAM_CONFIG_INSTALL_DIR}/config.json\" FILE_PERMISSIONS OWNER_READ OWNER_WRITE)
         message(INFO \"Created template file ${PAM_CONFIG_INSTALL_DIR}/config.json\")
     endif()")
+
 
 # Testing
 include(CTest)
