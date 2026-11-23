@@ -108,7 +108,7 @@ pam_oauth2_log::log(BaseError const &e) noexcept
 void
 pam_oauth2_log::log(log_level_t level, const char *fmt, ...) noexcept
 {
-    if(lev_ == log_level_t::OFF)
+    if(!log_this(level))
         return;
     va_list ap1, ap2;
     va_start(ap1, fmt);
