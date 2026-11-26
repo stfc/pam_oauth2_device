@@ -26,12 +26,10 @@
 #include "include/pam_oauth2_log.hpp"
 #include "pam_oauth2_device.hpp"
 
-#include <filesystem>
-#include <filesystem>
 
 using json = nlohmann::json;
 
-// Legacy install path
+// Legacy (and current default) install path
 constexpr char const *config_path1 = "/etc/pam_oauth2_device/config.json";
 // Less intrusive install path
 constexpr char const *config_path2 = "/usr/local/etc/pam_oauth2_device/config.json";
@@ -52,7 +50,12 @@ bool parse_args(Config &config, int flags, int argc, const char **argv, pam_oaut
 static const std::string magic_bypass("*bypass*");
 
 //! Check if we are to bypass the pam_sm_* call for a given local_user
-bool bypass(Config const &, pam_oauth2_log &, char const *);
+/*! \param config Configuration data
+ *  \param log Logging service
+ *  \param local_user local user id as a C string
+ *  \return true if local_user is found in bypass table, meaning the user is ignored by this module
+ */
+bool bypass(Config const &config, pam_oauth2_log &log, char const *local_user);
 
 //! Translate from C++'s log level (as defined in pam_oauth2_log) to a C one used by LDAP
 enum ldap_loglevel_t ldap_log_level(pam_oauth2_log::log_level_t);
@@ -86,8 +89,7 @@ bool Userinfo::intersects(std::vector<std::string>::const_iterator beg, std::vec
     std::vector<std::string> target;
     // Intersection is tidier but needs both its entries to be sorted
     std::set_intersection(groups_.cbegin(), groups_.cend(), beg, end,
-	    // no CTAD in C++11
-			  std::back_insert_iterator<std::vector<std::string>>(target));
+			  std::back_insert_iterator(target));
 
     return !target.empty();
 
@@ -144,6 +146,7 @@ std::string getQr(const char *text, const int ecc = 0, const int border = 1)
     return oss.str();
 }
 
+
 std::string DeviceAuthResponse::get_prompt(const int qr_ecc = 0)
 {
     bool complete_url = !verification_uri_complete.empty();
@@ -164,66 +167,66 @@ std::string DeviceAuthResponse::get_prompt(const int qr_ecc = 0)
                << getQr((complete_url ? verification_uri_complete : verification_uri).c_str(), qr_ecc)
                << std::endl;
     }
-    prompt << "Hit enter to start checking authentication every "
-           << std::to_string(interval)
-           << " seconds\nYou have "
-           << std::to_string(expires_in)
-           << " seconds to finish authenticating\n";
+    prompt << "Hit enter when you have authenticated.  You have until "
+           << std::put_time(std::localtime(expires_at))
+           << " to finish authenticating\n";
     return prompt.str();
 }
 
 
-void make_authorization_request(const Config &config,
-                                pam_oauth2_log &logger,
-                                std::string const &client_id,
-                                std::string const &client_secret,
-                                std::string const &scope,
-                                std::string const &device_endpoint,
-                                DeviceAuthResponse *response)
+DeviceAuthResponse
+make_authorization_request(const Config &config,
+                           pam_oauth2_log &logger)
 {
     pam_oauth2_curl curl(config);
     pam_oauth2_curl::params params;
-    curl.add_params(params, "client_id", client_id);
-    curl.add_params(params, "scope", scope);
-    std::string result{curl.call(config, device_endpoint, params)};
+    DeviceAuthResponse response;
+    curl.add_params(params, "client_id", config.client_id);
+    curl.add_params(params, "scope", config.scope);
+    std::string result{curl.call(config, config.device_endpoint, params)};
+    constexpr int rfc8628_minimum_interval = 5;
+    constexpr std::chrono::seconds rfc8628_minimum_interval_chrono{rfc8628_minimum_interval};
 
     try
     {
         puts(result.c_str());
         logger.log(pam_oauth2_log::log_level_t::DEBUG, "Response to authorization request: %s\n", result.c_str());
         auto data = json::parse(result);
-        response->user_code = data.at("user_code");
-        response->device_code = data.at("device_code");
-        response->verification_uri = data.at("verification_uri");
-        response->expires_in = data.at("expires_in");
+        response.user_code = data.at("user_code");
+        response.device_code = data.at("device_code");
+        response.verification_uri = data.at("verification_uri");
+        response.expires_at = data.at("expires_in");
 	if (data.find("interval") != data.end())
         {
-            response->interval = data.at("interval");
-        }else{
-            response->interval = 5;
+		int interval = data.at("interval");
+		if(interval >= rfc8628_minimum_interval)
+		    response.interval = std::chrono::seconds(interval);
+	        else
+	            response.interval = rfc8628_minimum_interval_chrono;
+        } else {
+            response.interval = rfc8628_minimum_interval_chrono;
 	}
         if (data.find("verification_uri_complete") != data.end())
         {
-            response->verification_uri_complete = data.at("verification_uri_complete");
+            response.verification_uri_complete = data.at("verification_uri_complete");
         }
     }
     catch (json::exception &e)
     {
         throw ResponseError("AuzReq: Couldn't parse auz response from server");
     }
+    return response;
 }
 
-void poll_for_token(Config const &config,
-                    pam_oauth2_log &logger,
-                    std::string const &client_id,
-                    std::string const &client_secret,
-                    std::string const &token_endpoint,
-                    std::string const &device_code,
-                    std::string &token,
-		    int timeout,
-		    int interval)
+std::string
+poll_for_token(Config const &config,
+               pam_oauth2_log& logger,
+               std::string const& device_code,
+               std::chrono::seconds interval,
+               std::chrono::time_point<std::chrono::system_clock> timeout)
 {
     json data;
+    std::string token;
 
     pam_oauth2_curl curl(config);
 
@@ -231,26 +234,23 @@ void poll_for_token(Config const &config,
     curl.add_params(params, "grant_type", "urn:ietf:params:oauth:grant-type:device_code");
     curl.add_params(params, "device_code", device_code);
 
-    while (true)
+    while (timeout > std::chrono::system_clock::now())
     {
-        timeout -= interval;
-        if (timeout < 0)
-        {
-            throw TimeoutError("Timeout waiting for token");
-        }
+        constexpr auto rfc8628_minimum_interval_incr = std::chrono::seconds(5);
 
-        std::this_thread::sleep_for(std::chrono::seconds(interval));
+        std::this_thread::sleep_for(interval);
 
-	std::string result{curl.call(config, token_endpoint, params)};
+	std::string result{curl.call(config, config.token_endpoint, params)};
 
 	try
         {
 	    logger.log(pam_oauth2_log::log_level_t::DEBUG, "Response from token poll: %s", result.c_str());
             data = json::parse(result);
+	    // See RFC 8628 section 3.5
             if (data["error"].empty())
             {
                 token = data.at("access_token");
-                break;
+                return token;
             }
             else if (data["error"] == "authorization_pending")
             {
@@ -258,7 +258,7 @@ void poll_for_token(Config const &config,
             }
             else if (data["error"] == "slow_down")
             {
-                ++interval;
+                interval += rfc8628_minimum_interval_incr;
             }
             else if (data["error"] == "unauthorized")
             {
@@ -269,28 +269,31 @@ void poll_for_token(Config const &config,
             }
             else
             {
-                throw ResponseError("Token response: unknown server error");
+                std::string msg{"Token response: unknown server error: "};
+                msg += data.at("error");
+                throw ResponseError(msg.c_str());
             }
         }
         catch (json::exception &e)
         {
-            throw ResponseError("Token response: could not parse server response");
+            std::string msg{"Token response: could not parse server response: "};
+            msg += e.what();
+            throw ResponseError(msg.c_str());
         }
-    }
+    } // now() < timeout
+    throw TimeoutError("Timeout waiting for token");
 }
 
 
 
 Userinfo
 get_userinfo(const Config &config,
-                  pam_oauth2_log &logger,
-                  std::string const &userinfo_endpoint,
-                  std::string const &token,
-                  std::string const &username_attribute)
+             pam_oauth2_log &logger,
+             std::string const &token)
 {
     pam_oauth2_curl curl(config);
 
-    std::string result{curl.call(config, userinfo_endpoint, pam_oauth2_curl::credential(token))};
+    std::string result{curl.call(config, config.userinfo_endpoint, pam_oauth2_curl::credential(token))};
     try
     {
 	// we do an extra if since the c_str could be expensive
@@ -300,9 +303,9 @@ get_userinfo(const Config &config,
 	auto const the_end = data.end();
 	if(data.find("sub") == the_end || data.find("name") == the_end)
 	    throw "userinfo lacks 'sub' or 'name'";
-	if(data.find(username_attribute) == the_end)
+	if(data.find(config.username_attribute) == the_end)
 	    throw "username_attribute not found in userinfo object";
-        Userinfo ui(data.at("sub"), data.at(username_attribute), data.at("name"));
+        Userinfo ui(data.at("sub"), data.at(config.username_attribute), data.at("name"));
 	if(data.find("groups") != the_end)
 	    ui.set_groups( data.at("groups").get<std::vector<std::string>>() );
         return ui;
@@ -402,7 +405,7 @@ bool is_authorized(Config const &config,
         {
 	    // Extra if in case c_str is expensive -
 	    if(logger.log_level() == pam_oauth2_log::log_level_t::DEBUG)
-		logger.log(pam_oauth2_log::log_level_t::DEBUG, result.c_str());
+		logger.log(pam_oauth2_log::log_level_t::DEBUG, "%s", result.c_str());
             auto data = json::parse(result);
             std::vector<std::string> groups = data.at("groups").get<std::vector<std::string>>();
             std::sort(groups.begin(), groups.end());
@@ -511,7 +514,6 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     const char *username_local;
     std::string token;
     Config config;
-    DeviceAuthResponse device_auth_response;
     // Current default log level is INFO
     pam_oauth2_log logger(pamh, pam_oauth2_log::log_level_t::INFO);
 
@@ -526,19 +528,16 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
 	if(bypass(config, logger, username_local))
 	    return PAM_IGNORE;
 
-        make_authorization_request(
-            config,
-            logger,
-            config.client_id, config.client_secret,
-            config.scope, config.device_endpoint,
-            &device_auth_response);
+        DeviceAuthResponse device_auth_response = make_authorization_request(
+	        config,
+	        logger);
         show_prompt(pamh, config.qr_error_correction_level, &device_auth_response);
         poll_for_token(config, logger,
+                       device_auth_response.device_code, TODO, TODO);
 		       config.client_id, config.client_secret,
                        config.token_endpoint,
-                       device_auth_response.device_code, token, device_auth_response.expires_in, device_auth_response.interval);
-        Userinfo ui{get_userinfo(config, logger, config.userinfo_endpoint, token,
-				 config.username_attribute)};
+                       device_auth_response.device_code, token, device_auth_response.expires_at, device_auth_response.interval);
+        Userinfo ui{get_userinfo(config, logger, token)};
 	if (is_authorized(config, logger, username_local, ui)) {
 	    logger.log(pam_oauth2_log::log_level_t::INFO, "%s is authorised", username_local);
 	    return PAM_SUCCESS;
@@ -555,13 +554,13 @@ PAM_EXTERN int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, cons
     catch(std::exception const &e)
     {
         logger.log(pam_oauth2_log::log_level_t::ERR, "Caught system exception (this is bad)");
-        logger.log(pam_oauth2_log::log_level_t::ERR, e.what());
+        logger.log(pam_oauth2_log::log_level_t::ERR, "%s", e.what());
         return PAM_SYSTEM_ERR;
     }
     catch(char const *msg)
     {
         logger.log(pam_oauth2_log::log_level_t::ERR, "Caught cannot-happen exception(this is very bad)");
-        logger.log(pam_oauth2_log::log_level_t::ERR, msg);
+        logger.log(pam_oauth2_log::log_level_t::ERR, "%s", msg);
         return PAM_SYSTEM_ERR;
     }
     return PAM_AUTH_ERR;
@@ -597,7 +596,7 @@ parse_args(Config &config, [[maybe_unused]] int flags, int argc, const char **ar
     catch (json::exception &e)
     {
 	logger.log(pam_oauth2_log::log_level_t::ERR, "Failed to load config:");
-	logger.log(pam_oauth2_log::log_level_t::ERR, e.what());
+	logger.log(pam_oauth2_log::log_level_t::ERR, "%s", e.what());
 	return false;
     }
 

@@ -48,26 +48,17 @@ std::string getQr(const char *text, const int ecc = 0, const int border = 1);
 class DeviceAuthResponse;
 
 void make_authorization_request(Config const &,
-				pam_oauth2_log &,
-				std::string const &client_id,
-				std::string const &client_secret,
-				std::string const &scope,
-				std::string const &device_endpoint,
-				DeviceAuthResponse *response);
+                                pam_oauth2_log &,
+                                DeviceAuthResponse *response);
 
-void poll_for_token(Config const &config,
-		    pam_oauth2_log &logger,
-		    std::string const &client_id,
-		    std::string const &client_secret,
-		    std::string const &token_endpoint,
-		    std::string const &device_code,
-		    std::string &token);
+std::string poll_for_token(Config const &config,
+                           pam_oauth2_log& logger,
+                           std::string const& device_code, std::chrono::seconds interval, std::chrono::time_point<std::chrono::system_clock>
+                           timeout);
 
 Userinfo get_userinfo(Config const &config,
-		      pam_oauth2_log &logger,
-		      std::string const &userinfo_endpoint,
-		      std::string const &token,
-		      std::string const &username_attribute);
+                      pam_oauth2_log &logger,
+                      std::string const &token);
 
 void show_prompt(pam_handle_t *pamh,
 		 int qr_error_correction_level,

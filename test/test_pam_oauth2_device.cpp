@@ -21,12 +21,7 @@ TEST(PamTest, Device)
 {
     Config config;
     pam_oauth2_log logger(nullptr, pam_oauth2_log::log_level_t::DEBUG);
-    DeviceAuthResponse response;
-    make_authorization_request(config, logger, CLIENT_ID,
-                               CLIENT_SECRET,
-                               SCOPE,
-                               DEVICE_ENDPOINT,
-                               &response);
+    DeviceAuthResponse response = make_authorization_request(config, logger);
     EXPECT_EQ(response.user_code, USER_CODE);
     EXPECT_EQ(response.device_code, DEVICE_CODE);
     EXPECT_EQ(response.verification_uri, VERIFICATION_URL);
@@ -39,9 +34,7 @@ TEST(PamTest, Token)
     Config config;
     pam_oauth2_log logger(nullptr, pam_oauth2_log::log_level_t::DEBUG);
     std::string token;
-    poll_for_token(config, logger, CLIENT_ID, CLIENT_SECRET,
-                   TOKEN_ENDPOINT,
-                   DEVICE_CODE, token);
+    poll_for_token(config, logger, DEVICE_CODE, TODO, TODO);
     EXPECT_EQ(token, ACCESS_TOKEN);
 }
 
@@ -50,9 +43,7 @@ TEST(PamTest, Userinfo)
     Config config;
     pam_oauth2_log logger(nullptr, pam_oauth2_log::log_level_t::DEBUG);
     Userinfo userinfo("YzQ4YWIzMzJhZjc5OWFkMzgwNmEwM2M5", "jdoe", "Joe Doe");
-    get_userinfo(config, logger, USERINFO_ENDPOINT,
-                 ACCESS_TOKEN,
-                 USERNAME_ATTRIBUTE);
+    get_userinfo(config, logger, ACCESS_TOKEN);
     EXPECT_EQ(userinfo.sub(), "YzQ4YWIzMzJhZjc5OWFkMzgwNmEwM2M5");
     EXPECT_EQ(userinfo.username(), "jdoe");
     EXPECT_EQ(userinfo.name(), "Joe Doe");
