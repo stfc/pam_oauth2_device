@@ -53,6 +53,8 @@ public:
         verification_uri,
         verification_uri_complete,
         device_code;
+    int interval,
+	expires_in;
     std::string get_prompt(const int qr_ecc);
 };
 
@@ -70,7 +72,9 @@ void poll_for_token(Config const &config,
                     std::string const &client_secret,
                     std::string const &token_endpoint,
                     std::string const &device_code,
-                    std::string &token);
+		    std::string &token,
+		    int timeout,
+		    int interval);
 
 Userinfo get_userinfo(Config const &config,
 		      pam_oauth2_log &logger,
